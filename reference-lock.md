@@ -27,3 +27,13 @@ Unavailable through search retrieval and direct content fetch (403). Not visuall
 - Exercised My Plan > Video > Podcast > solo > 17 episodes (increment disabled), two/day > full coverage > Setup (three cameras/operators/tripods) > Extras > complete Review.
 - Exercised ready-made podcast > three cameras > package Details > Extras and confirmed N$11,000 starting estimate. Included items remain in a single package price line.
 - Email provider is not connected. No test email sent, no claim of server delivery. No real mobile installation certification.
+
+## V7 · Built from the inspected references
+
+Now visually inspected all supplied Behance image URLs, including b8a242252018337.6a44f4304f4ea.png, and the full Dribbble composition. This supersedes the unavailable-Behance limitation above.
+
+Behance is dominant for home/detail: compact greeting and round actions; two-line rounded sans heading with a restrained yellow-green highlight; horizontal icon category pills; vertically stacked white-framed photo cards with slim name/price strips; floating black navigation with active icon/label capsule. No generic two-column catalogue or large equipment banner. Grey-white canvas, photo cards preserve media role, and the black navigation remains visually distinct. The accent #e3ef8c reflects the selected Behance example, replacing previous blue-only home direction. Dribbble owns booking date strip, rounded option pills and compact setup surfaces, using muted periwinkle selection.
+
+Functional changes: seven-day preferred date strip mirrors the native date field and retains date selection for any later date. Header search action jumps to packages. Existing package/custom/pricing rules unchanged. Package and builder screens use their own back/header composition.
+
+Verification: syntax and domain checks passed; browser inspected 390px and 320px home. Opened podcast package, entered booking, selected Thu29 and observed date field2026-10-29 and selected pill in rendered UI. No server email changes.
