@@ -1,0 +1,1 @@
+{"name":"visionhaus-booking","private":true,"type":"module","scripts":{"dev":"node scripts/dev.mjs","build":"node scripts/build.mjs","test":"node tests/domain.test.mjs && node tests/rentals.test.mjs && node tests/requests.test.mjs"}}

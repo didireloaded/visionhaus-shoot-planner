@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {handleSubmission} from '../worker/requests.mjs';
+import {initial,change} from '../public/domain.mjs';
+import {rentalInitial,setRentalQty} from '../public/rentals.mjs';
+let seq=0;
+const key='vh-'+'a'.repeat(64);
+const env={RESEND_API_KEY:'test-secret-not-a-real-key',EMAIL_FROM:'VisionHaus <requests@example.com>'};
+let production=change(change(initial(),'service','Video'),'project','Podcast');production={...production,name:'Test Client',email:'client@example.com',notes:'A podcast brief',total:1};
+function request(state=production,type='production',headers={}){return new Request('https://visionhaus.example/api/requests',{method:'POST',headers:{Origin:'https://visionhaus.example','Content-Type':'application/json','CF-Connecting-IP':`test-${seq++}`,...headers},body:JSON.stringify({type,state,requestId:key})})}
+let calls=0,captured;
+const provider=async(url,options)=>{calls++;captured={url,headers:options.headers,body:JSON.parse(options.body)};return Response.json({id:'accepted-test-email'})};
+let r=await handleSubmission(request(),{},provider);assert.equal(r.status,503);assert.equal(calls,0,'Missing configuration must not claim success');
+r=await handleSubmission(request(),env,provider);assert.equal(r.status,200);assert.equal((await r.json()).ok,true);assert.deepEqual(captured.body.to,['didi@visionhausmedia.com.na']);assert.equal(captured.body.reply_to,'client@example.com');assert.match(captured.body.text,/8,500/,'Server must calculate prices, ignoring client total');assert.match(captured.body.text,/A podcast brief/);assert.equal(captured.headers['Idempotency-Key'],key);
+r=await handleSubmission(request({...production,email:'invalid'}),env,provider);assert.equal(r.status,400);
+r=await handleSubmission(request(production,'production',{Origin:'https://evil.example'}),env,provider);assert.equal(r.status,403);
+r=await handleSubmission(new Request('https://visionhaus.example/api/requests'),env,provider);assert.equal(r.status,405);
+r=await handleSubmission(request(),env,async()=>Response.json({message:'failed'},{status:400}));assert.equal(r.status,502);
+r=await handleSubmission(request(),env,async()=>Response.json({error:'not sent'}));assert.equal(r.status,502);
+r=await handleSubmission(request(),env,async()=>{throw new Error('network failure containing secret')});assert.equal(r.status,502);assert.ok(!(await r.text()).includes('secret'));
+let rental=setRentalQty(rentalInitial(),'fx3',1);rental={...rental,start:'2099-11-01',end:'2099-11-02',name:'Rental Client',email:'rental@example.com',ack:true};
+r=await handleSubmission(request(rental,'rental'),env,provider);assert.equal(r.status,200);assert.match(captured.body.text,/6,000/);assert.equal(captured.body.reply_to,'rental@example.com');
+r=await handleSubmission(request({...rental,ack:false},'rental'),env,provider);assert.equal(r.status,400);
+r=await handleSubmission(request({...rental,end:'2099-10-01'},'rental'),env,provider);assert.equal(r.status,400);
+for(let i=0;i<6;i++){r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env,provider);assert.equal(r.status,200)}r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env,provider);assert.equal(r.status,429);
+console.log('Server submissions validate origin/contact/dates, recalculate rates, fix the recipient, set Reply-To/idempotency, reject provider failures and never succeed without configuration.');

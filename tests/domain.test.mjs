@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {initial,change,total,priceLines,restore,reviewItems,equipment,shootDays,startPackage,briefText,availableExtras,packages} from '../dist/domain.mjs';
+import {initial,change,total,priceLines,restore,reviewItems,equipment,shootDays,startPackage,briefText,availableExtras,packages} from '../public/domain.mjs';
 let s=change(change(initial(),'service','Video'),'project','Podcast');
 s=change(s,'framing','Direct to camera');assert.equal(s.people,1);assert.equal(s.cameras,1);
 s=change(s,'people',4);assert.equal(s.people,1,'Solo cannot add speakers');

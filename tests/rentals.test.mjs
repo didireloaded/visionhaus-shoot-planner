@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {rentalItems,rentalInitial,setRentalQty,includedBy,rentalDays,rentalUnits,rentalErrors,rentalLines,rentalTotal,restoreRental,rentalBrief} from '../dist/rentals.mjs';
-import {initial,change,priceLines,quoteOnly} from '../dist/domain.mjs';
+import {rentalItems,rentalInitial,setRentalQty,includedBy,rentalDays,rentalUnits,rentalErrors,rentalLines,rentalTotal,restoreRental,rentalBrief} from '../public/rentals.mjs';
+import {initial,change,priceLines,quoteOnly} from '../public/domain.mjs';
 assert.equal(rentalItems.length,20);
 let s=rentalInitial();s=setRentalQty(s,'fx3',9);assert.equal(s.items.fx3,1);
 s=setRentalQty(s,'sigma24',1);s=setRentalQty(s,'tripod',1);s=setRentalQty(s,'bundle',1);assert.deepEqual(s.items,{bundle:1});assert.equal(includedBy(s,'fx3'),'bundle');s=setRentalQty(s,'fx3',1);assert.deepEqual(s.items,{bundle:1});

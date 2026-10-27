@@ -59,3 +59,13 @@ Contact: didi@visionhausmedia.com.na in Studio and both production/rental email 
 Brief capture: home and builder entry accepts a brief up to6000 characters and service category, then carries it into the custom plan's notes. It does not infer requirements or call AI. The UI's expandable explanation explicitly identifies AI planning as not connected. An actual model integration requires server-side credentials and a model service. Intended boundary: model suggests structured scope/crew/kit/schedule; deterministic approved pricing calculates known amounts, flags unknown rates and leaves availability for review. No invented AI results, server persistence or quote certainty.
 
 Validation: syntax and existing domain/rental tests passed. Browser reviewed320/390px icon home and populated My Plan grid. Brief 'A four-person podcast with three cameras and six episodes.' survived category/project selection into Extras notes.320px content/client both305px after scrollbar. Studio contact/email/website verified in browser.
+
+## V10 · Direct server-side request submission
+
+Replaced production and rental mail-composer handoffs with same-origin POST /api/requests, pending states, inline recoverable errors and success reference only after email-provider acceptance. Migrated static source from dist to public; custom dependency-free Worker ESM embeds all public assets. Site identity/audience unchanged.
+
+Email handler fixes destination to didi@visionhausmedia.com.na and sets reply_to to the validated client email. Server validates inputs and restores/recalculates the approved production/rental brief. Client totals and recipient overrides are ignored. JSON/body limits, origin checks, bounded per-worker abuse guard, provider timeout and Resend idempotency header included. The abuse guard is per instance, not a shared/global rate limiter. No live availability, payment or durable inbox database is claimed.
+
+Required runtime secrets: RESEND_API_KEY and EMAIL_FROM (verified sender). Sites environment was empty during implementation. Without these the endpoint returns503, leaves the draft intact and never shows submitted. No real email-provider send or inbox delivery has been verified. Live delivery remains blocked until provider configuration.
+
+Tests cover origin, contact and rental validation, server pricing, fixed recipient, Reply-To, idempotency, rate guard, missing configuration, provider failures and success through a mock. Browser exercised Submit on a production request, received the unconfigured-service error without opening an email app, and retained entered name/email and configuration. No real email was sent.
