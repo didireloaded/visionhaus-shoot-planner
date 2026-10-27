@@ -1,51 +1,29 @@
-# iOS PWA reference lock
+# VisionHaus packages and custom production · V6
 
-Primary: https://dribbble.com/shots/27654880-Travel-Booking-App-Mobile-UI-UX-Design
-Preserve cool near-white canvas, strong service photography, compact headings, pill controls, four bottom tabs and blue primary booking actions.
+Primary target supplied by owner: Ronas IT Healthcare Telemedicine Mobile App Design
+https://dribbble.com/shots/27059975-Healthcare-Telemedicine-Mobile-App-Design
+Observed the full image in browser. Preserve compact app header, light canvas, soft grouped controls, photo-led browse content and decisive black pill actions. Adapt medical categories to production packages. Do not copy medical illustrations, purple branding, premium upsells or serif text: these conflict with the owner's production brand / no-editorial direction.
 
-Secondary: https://dribbble.com/shots/27747040-Travel-Booking-App-Mobile-UI
-Borrow compact selection chips and rounded detail-sheet composition.
+Secondary supplied target:
+https://www.behance.net/gallery/252018337/Smart-Travel-Mobile-App-UIUX-Design
+Unavailable through search retrieval and direct content fetch (403). Not visually reviewed. No implementation claim is based on unseen Behance content.
 
-Secondary: https://dribbble.com/shots/27784544-Flight-Reservation-App-Mobile-UI
-Borrow grouped booking summary. Do not copy its dark canvas or serif typography.
+## Decision ledger
 
-Secondary: https://dribbble.com/shots/26929035-Doctor-Appointment-Booking-App-Healthcare-Mobile-app
-Borrow compact icon-led settings and detail hierarchy. Do not copy testimonials, practitioner claims or medical content.
+- Home content: owner's explicit six-package request. Six photo-led offers with starting prices; no equipment/configuration form on Home. Two columns on phone and three on desktop, with compact category chips.
+- Navigation: Home owns fixed packages; My Plan owns the separate custom scope builder. Saved owns package favourites; Studio has contact and draft controls.
+- Canvas #f5f6f8, surface white, text #191b20, primary action #1a1c21: from healthcare reference's light surfaces and black actions. Blue #396dce is restricted to selected controls and functional kit/status accents, preserving owner constraints against purple/neon.
+- Typography: compact system sans, 25–28px titles, 13–16px core controls. No editorial serif or oversized marketing headings.
+- Photos: retained representative local Unsplash assets, not presented as VisionHaus portfolio images. Photos label packages, no decorative AI artwork.
+- Motion: 120ms control feedback, 200ms disclosures, 240ms screen entry. Price changes animate only the price. Reduced-motion disables motion.
+- Scope rules: solo locks speaker count to one, conversation/full coverage permits two to four speakers. Episodes 1–17. Episodes/day derives ceil(episodes/perDay), and time checks flag overfull recording days. Full-event recording and short highlights are separate outputs. Setup derives cameras, operators, tripods and audio, then adds only relevant toggles and extras.
+- Pricing: rate card read from current VisionHaus_RateCard_2026.pdf in Library. Photography half-day6500/full-day11500, editing950/hour min2 or5500/day, videographer3500/hour min3 or11500/day, event12500/premium24500. Reel/music/podcast starting tiers come from owner-supplied conversation pricing. All remain starting estimates pending quotation. Unpriced crew, kit, edit scope and extras are flagged instead of assigned fabricated prices. Package inclusions are never billed twice.
+- Equipment inventory: rate card identifies one FX3 and tripod plus RØDE, H5, Sigma lenses, Sirui, softboxes, GoPros, filters and matte box. Multi-camera requests are not advertised as guaranteed owned inventory; extra equipment is sourced/confirmed. No fake live availability.
+- Submission: no server email service exists. A validated review opens a mail composer addressed to the rate-card contact info@visionhausmedia.com.na, containing the complete request. Completion explicitly says sending must finish in email and cannot be confirmed here. Plain-text download is available. No silent claim of automatic submission, saved server records or confirmed booking.
 
-Owner constraints: no emojis, use Lucide icons, no editorial look or oversized headings, minimal reading. PWA with iOS-style behaviour, adapted desktop layout.
-
-Imagery: representative Unsplash photographs, downloaded locally. Not VisionHaus portfolio work. Sources: photo-1492684223066-81342ee5ff30, photo-1478737270239-2f02b77fc618, photo-1492619375914-88005aa9e8fb, photo-1542038784456-1ea8e935640e.
-
-Lucide assets: runtime-provided lucide package, local UMD bundle, included license. No CDN dependency for icons.
-
-Rates remain illustrative. No live submission, email, payments, availability or Zoho integration.
-
-## Verification
-
-- Reviewed all four user-supplied references in the browser, including the primary shot at full image size.
-- Desktop and embedded 390px / 320px viewport render checks completed.
-- 320px viewport had no horizontal document overflow (305px client and content width after scrollbar).
-- Explored a service, opened its details, configured podcast scope, added an extra and completed the demo brief.
-- Saved a podcast service and verified it appeared in Saved.
-- Confirmed native mobile estimate disclosure opens and exposes the production summary.
-- Fixed an overbroad navigation selector that bound to the body's view attribute and reset expanded state on click.
-- Existing domain tests passed for pricing changes, removals, dependency resets and invalid draft restoration.
-- No real-device installation, keyboard or offline certification is claimed.
-
-## Home simplification · 27 October 2026
-
-Owner selected Evergo service list, Dev Design category choices and Purrweb rounded iOS controls from the latest reference set. This supersedes the photo-feed home direction, while retaining service detail and builder behaviour.
-
-Home now contains four icon-led rows and an optional resume-draft action. Search, filters and the 17-item photo catalogue are removed from the home screen. Category selection reveals a compact project list. Explore always returns to the four-choice home. Lucide icons remain throughout.
-
-Validated 320px and 390px browser viewport renders, no horizontal overflow at 320px, category-to-podcast navigation, builder entry, retained draft and Explore return. Domain checks continue to pass. No backend changes.
-
-## Animated app redesign · 27 October 2026
-
-Direct build from the three owner-selected sources. Evergo owns the quiet four-category entry; Dev Design supplies large icon choices; Purrweb supplies rounded iOS controls. Keep the previously selected cool white canvas and blue action role. Home becomes a two-by-two choice surface, not a catalogue feed. Each tile is a navigation target; no nested cards or marketing content.
-
-Decision ledger: compact system type from the iOS brief; 26px home title, 15px service names; white canvas and grouped pale-blue service surface; blue only for navigation, selection and primary actions. Local Lucide line icons are functional service labels. No new decorative imagery. Existing service photography retained on detail screens.
-
-Motion: 120ms press feedback, 200ms estimate and option state changes, 280ms scene entry. Animate route/section changes only, never every render or typed character. Native disclosure gets a 200ms reveal. Reduced-motion suppresses spatial movement and animation. No new dependency, no auto-looping decoration.
-
-V5 validation: JavaScript syntax and existing pricing/domain tests passed. Browser reviewed home at embedded 320px and 390px widths and desktop entry; navigated Video > Podcast > Build, changed people from 2 to 3 and observed estimate change from N$9,700 to N$9,950. No physical-device verification claimed.
+## Validation
+- JavaScript syntax and domain tests passed. Tests cover solo constraints, all 17 episodes, six days at three episodes/day, package multiplication, derived operators/tripods, service-specific extras, event output and complete brief text.
+- Browser checked desktop home and embedded 390px and 320px views. At 320px, both content and client width were 305px after the browser scrollbar.
+- Exercised My Plan > Video > Podcast > solo > 17 episodes (increment disabled), two/day > full coverage > Setup (three cameras/operators/tripods) > Extras > complete Review.
+- Exercised ready-made podcast > three cameras > package Details > Extras and confirmed N$11,000 starting estimate. Included items remain in a single package price line.
+- Email provider is not connected. No test email sent, no claim of server delivery. No real mobile installation certification.
