@@ -25,3 +25,5 @@ const restored=restore({...s,perDay:999,people:999});assert.equal(restored.camer
 assert.equal(restore({service:'Video',project:'Fake',people:999}).project,'');assert.equal(restore(null).project,'');
 s=change(change(initial(),'service','Video'),'project','Podcast');s=change(s,'framing','Direct to camera');s=change(s,'episodes',17);s=change(s,'perDay',2);const text=briefText({...s,name:'Test client',email:'test@example.com',notes:'Bring references'});assert.match(text,/17 episodes.*2 per day.*9 recording days/);assert.match(text,/1 microphone/);assert.match(text,/Bring references/);assert.match(text,/quote request/);
 console.log('Solo constraints, 17-episode scheduling, derived crew/kit, package totals, review-only costs, service filtering, event deliverables and full request export passed.');
+
+let briefState={...initial(),notes:'Client supplied brief'};briefState=change(briefState,'service','Video');briefState=change(briefState,'project','Podcast');assert.equal(briefState.notes,'Client supplied brief');assert.equal(restore(briefState).notes,'Client supplied brief');

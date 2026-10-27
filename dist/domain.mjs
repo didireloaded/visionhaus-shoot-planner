@@ -1,6 +1,6 @@
 // Published photography/crew/equipment rates: VisionHaus_RateCard_2026.pdf.
 // Reel, music and podcast starting rates: owner's supplied pricing. Quotes confirm scope.
-export const projects={Video:['Social reel','Music video','Event coverage','Podcast','Interview','Testimonial','Conference','Commercial','Corporate video','Wedding film','Property video','Birthday reel','Club-night video','Monthly content','Livestreaming','Brand commercial','Crew hire'],Photo:['Portraits','Headshots','Event photography','Product photography','Nightlife photography'],'Photo + video':['Event coverage','Brand content','Conference'],Editing:['Social reel edit','Podcast edit','Music video edit','Event edit','Commercial edit','Colour grading','Sound cleanup & mixing']};
+export const projects={Video:['Social reel','Music video','Event coverage','Podcast','Interview','Testimonial','Conference','Commercial','Corporate video','Wedding film','Property video','Product video','Tourism & hospitality film','Documentary','Birthday reel','Club-night video','Monthly content','Livestreaming','Brand commercial','Crew hire'],Photo:['Portraits','Headshots','Event photography','Product photography','Nightlife photography','Property photography','Fashion photography'],'Photo + video':['Event coverage','Brand content','Conference'],Editing:['Social reel edit','Podcast edit','Music video edit','Event edit','Commercial edit','Colour grading','Sound cleanup & mixing','Photo editing & retouching']};
 export const locations=['Windhoek','Swakopmund','Walvis Bay','The north','Other location / remote'];
 export const packages=[
  {id:'reels',title:'Reels',project:'Social reel',service:'Video',image:'camera',icon:'smartphone',label:'Short-form content',price:1800,variants:[{id:'outdoor',label:'Outdoor',price:1800,hours:3,features:['3-hour outdoor shoot','One finished reel','3 revision rounds']},{id:'indoor',label:'Indoor',price:2500,hours:6,features:['6-hour indoor shoot','One finished reel','4 revision rounds']},{id:'both',label:'Both',price:3500,hours:7,features:['Indoor & outdoor','7-hour shoot','One reel · 5 revisions']}]},
@@ -21,7 +21,7 @@ export const variantFor=s=>packageFor(s)?.variants.find(v=>v.id===s.variantId);
 export const hoursValue=s=>s.hours==='Full day'?8:s.hours;
 export const shootDays=s=>isPodcast(s)?Math.ceil(s.episodes/s.perDay):1;
 export const availableExtras=s=>s.project==='Crew hire'?[]:extras.filter(e=>isPhoto(s)?['rush','retouch','raw'].includes(e.id):!['retouch'].includes(e.id));
-export const quoteOnly=s=>['Birthday reel','Monthly content','Livestreaming','Colour grading','Sound cleanup & mixing','Crew hire'].includes(s.project);
+export const quoteOnly=s=>['Birthday reel','Monthly content','Livestreaming','Colour grading','Sound cleanup & mixing','Crew hire','Product video','Tourism & hospitality film','Documentary','Property photography','Fashion photography','Photo editing & retouching'].includes(s.project);
 export function priceLines(s){
  if(!s.project||quoteOnly(s))return [];
  const variant=variantFor(s);
@@ -88,8 +88,8 @@ export function reviewItems(s){
 }
 export function change(s,key,value){
  let n={...s,[key]:value,complete:false};
- if(key==='service')n={...initial(),name:s.name,email:s.email,phone:s.phone,service:value};
- if(key==='project')n={...initial(),name:s.name,email:s.email,phone:s.phone,service:s.service,project:value,section:'shoot',subjects:value==='Headshots'?8:1,cameras:s.service==='Photo'?1:2,sound:s.service!=='Photo'};
+ if(key==='service')n={...initial(),name:s.name,email:s.email,phone:s.phone,notes:s.notes,service:value};
+ if(key==='project')n={...initial(),name:s.name,email:s.email,phone:s.phone,notes:s.notes,service:s.service,project:value,section:'shoot',subjects:value==='Headshots'?8:1,cameras:s.service==='Photo'?1:2,sound:s.service!=='Photo'};
  if(key==='framing'){
   n.cameras=value==='Direct to camera'?1:value==='Conversation'?2:3;
   if(value==='Direct to camera')n.people=1;
@@ -121,7 +121,7 @@ export function restore(raw){
  for(const key of['sound','lighting','liveEdits','gimbal','drone','teleprompter'])if(typeof raw[key]==='boolean')n[key]=raw[key];
  if(['Camera operator','Photographer','Editor','Sound operator','Production assistant'].includes(raw.crewRole))n.crewRole=raw.crewRole;
  for(const key of['eventOutput','editLength','shootStyle'])if(typeof raw[key]==='string'&&raw[key].length<60)n[key]=raw[key];
- for(const key of['venue','date','name','email','phone','notes'])if(typeof raw[key]==='string')n[key]=raw[key].slice(0,key==='notes'?1500:150);
+ for(const key of['venue','date','name','email','phone','notes'])if(typeof raw[key]==='string')n[key]=raw[key].slice(0,key==='notes'?6000:150);
  n.extras=availableExtras(n).filter(e=>Array.isArray(raw.extras)&&raw.extras.includes(e.id)).map(e=>e.id);
  if(['project','shoot','equipment','delivery','review'].includes(raw.section))n.section=raw.section;
  return n;
