@@ -31,3 +31,11 @@ Rates remain illustrative. No live submission, email, payments, availability or 
 - Fixed an overbroad navigation selector that bound to the body's view attribute and reset expanded state on click.
 - Existing domain tests passed for pricing changes, removals, dependency resets and invalid draft restoration.
 - No real-device installation, keyboard or offline certification is claimed.
+
+## Home simplification · 27 October 2026
+
+Owner selected Evergo service list, Dev Design category choices and Purrweb rounded iOS controls from the latest reference set. This supersedes the photo-feed home direction, while retaining service detail and builder behaviour.
+
+Home now contains four icon-led rows and an optional resume-draft action. Search, filters and the 17-item photo catalogue are removed from the home screen. Category selection reveals a compact project list. Explore always returns to the four-choice home. Lucide icons remain throughout.
+
+Validated 320px and 390px browser viewport renders, no horizontal overflow at 320px, category-to-podcast navigation, builder entry, retained draft and Explore return. Domain checks continue to pass. No backend changes.
