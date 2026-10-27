@@ -39,3 +39,13 @@ Owner selected Evergo service list, Dev Design category choices and Purrweb roun
 Home now contains four icon-led rows and an optional resume-draft action. Search, filters and the 17-item photo catalogue are removed from the home screen. Category selection reveals a compact project list. Explore always returns to the four-choice home. Lucide icons remain throughout.
 
 Validated 320px and 390px browser viewport renders, no horizontal overflow at 320px, category-to-podcast navigation, builder entry, retained draft and Explore return. Domain checks continue to pass. No backend changes.
+
+## Animated app redesign · 27 October 2026
+
+Direct build from the three owner-selected sources. Evergo owns the quiet four-category entry; Dev Design supplies large icon choices; Purrweb supplies rounded iOS controls. Keep the previously selected cool white canvas and blue action role. Home becomes a two-by-two choice surface, not a catalogue feed. Each tile is a navigation target; no nested cards or marketing content.
+
+Decision ledger: compact system type from the iOS brief; 26px home title, 15px service names; white canvas and grouped pale-blue service surface; blue only for navigation, selection and primary actions. Local Lucide line icons are functional service labels. No new decorative imagery. Existing service photography retained on detail screens.
+
+Motion: 120ms press feedback, 200ms estimate and option state changes, 280ms scene entry. Animate route/section changes only, never every render or typed character. Native disclosure gets a 200ms reveal. Reduced-motion suppresses spatial movement and animation. No new dependency, no auto-looping decoration.
+
+V5 validation: JavaScript syntax and existing pricing/domain tests passed. Browser reviewed home at embedded 320px and 390px widths and desktop entry; navigated Video > Podcast > Build, changed people from 2 to 3 and observed estimate change from N$9,700 to N$9,950. No physical-device verification claimed.
