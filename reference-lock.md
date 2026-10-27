@@ -37,3 +37,13 @@ Behance is dominant for home/detail: compact greeting and round actions; two-lin
 Functional changes: seven-day preferred date strip mirrors the native date field and retains date selection for any later date. Header search action jumps to packages. Existing package/custom/pricing rules unchanged. Package and builder screens use their own back/header composition.
 
 Verification: syntax and domain checks passed; browser inspected 390px and 320px home. Opened podcast package, entered booking, selected Thu29 and observed date field2026-10-29 and selected pill in rendered UI. No server email changes.
+
+## V8 · Rentals and service catalogue
+
+Home now has Packages / Rentals, with six production offers retained. Rentals has 20 entries copied from the current rate card, category filters, half-day/daily/weekly selector, bounded quantities and a separate kit/date/review flow. Published equipment quantities are not live availability. Modifiers exclude fixtures. Bundle dependencies remove separately selected FX3/lens/matte-box/ND/tripod, modifier components or single GoPros included in a five-pack. Selecting a bundle cannot reserve beyond the shared published inventory.
+
+Pricing assumptions made explicit in UI: daily dates count inclusively; half-day up to4 hours requires same-date return; weekly minimum5 days uses full seven-day blocks with part-used final blocks billed as a block. Delivery, deposit and insurance are excluded and subject to approval. Rental drafts expire locally after7 days; no server reservation or payment. Validated request opens email app, with download fallback and no false sent confirmation.
+
+Services added inside existing categories: birthday reel, club-night video, monthly content, livestreaming, brand commercial, crew hire, nightlife photography, colour grading, sound cleanup/mixing. Unknown rates show Quote required, including request exports. Published corporate, commercial, brand commercial, nightlife and event-photo package prices have dedicated pricing lines rather than generic crew-day substitutes. Photographer crew/day remains distinct from photo packages. No extra Home cards.
+
+Validation: syntax checks and both domain/rental suites passed. Rental tests cover all20 entries, quantities, bundle exclusions, invalid dates, half-day restrictions, weekly blocks, delivery address requirements, restoration and quote-only services. Browser checked390/320px rental views, category filter, FX3 then bundle replacement, dates Nov1–2 yielding N$9,600, review and required contact validation. 320px content and client widths both305px after scrollbar. No email sent during verification.
