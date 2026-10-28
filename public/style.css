@@ -58,3 +58,11 @@ body[data-view="plan"] #app-header,body[data-view="detail"] #app-header{display:
 button,input,textarea,select,summary{scroll-margin-block:24px}
 @media(hover:hover){.icon-package .package-open:hover,.project-grid>button:hover{background:#fafbff}.icon-package .save-button:hover{background:var(--selected-fill)}}
 @media(max-width:540px){.icon-package .package-open{padding-right:53px}.icon-package .save-button{right:4px}.package-text>small{font-size:11px}.package-price small{font-size:10px}.text-field input,.text-field textarea,.icon-field input,.icon-field select,.text-field select{font-size:16px}}
+
+/* Official artwork from visionhausmedia.com.na; preserve its aspect ratio. */
+.brand-avatar{width:76px;min-width:76px;height:40px;border-radius:10px;background:#17191b;display:grid;place-items:center;padding:6px}
+.brand-avatar img{width:100%;height:auto;object-fit:contain}
+.greeting-brand{min-width:0}.greeting-brand small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studio-logo{width:220px;height:108px;border-radius:20px;background:#17191b;padding:18px;display:grid;place-items:center}
+.studio-logo img{width:100%;height:auto;object-fit:contain}
+@media(max-width:350px){.brand-avatar{width:66px;min-width:66px;height:37px;padding:5px}.greeting-brand small{font-size:9px}}

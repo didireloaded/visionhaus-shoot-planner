@@ -99,3 +99,8 @@ Preserved base amounts; corrected package tax labels, added source-backed overru
 Read /Users/visionhaus/Downloads/Vision_Haus_Media_Full_Service_Catalogue.md and original Production Services List chat. The app contains 38 category/project choices (some repeat across categories), not the entire master catalogue. Preserve the earlier selective implementation until owner confirms further services, availability and prices. Do not claim free-form notes constitute a separately implemented service. Confirmed rental inventory remains the 20 entries in the 2026 card.
 
 Additional sources checked: 2024 Didi Reloaded Social Media Pricelist (historic, conflicting figures), 2024 Didi Reloaded Films Production Rate Card (historic crew/rental/editing figures), and VISIONHAUS X RELOADED STUDIOS RATE CARD Google Doc (explicitly MOCK PRICES; never use as approved production pricing). See outputs pricing checklist for details.
+
+
+## V14 · Official VisionHaus identity
+
+Replaced the fabricated vh. header/Studio placeholder and hand-drawn favicon with the actual transparent logo from https://visionhausmedia.com.na/assets/assets/logo-cream.6c76e5522dc6dab4724431e22b878d27.png and official lens favicon from https://visionhausmedia.com.na/favicon.ico. Original logo artwork is stored unchanged in public/visionhaus-logo.png. Header/Studio display the cream artwork on charcoal with object-fit:contain; no logo redrawing or recolouring. App icons are aspect-preserving, padded raster exports from that artwork. Header text can truncate on small widths to preserve action targets. Service-worker cache bumped so the updated artwork is available offline.
