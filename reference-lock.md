@@ -104,3 +104,8 @@ Additional sources checked: 2024 Didi Reloaded Social Media Pricelist (historic,
 ## V14 · Official VisionHaus identity
 
 Replaced the fabricated vh. header/Studio placeholder and hand-drawn favicon with the actual transparent logo from https://visionhausmedia.com.na/assets/assets/logo-cream.6c76e5522dc6dab4724431e22b878d27.png and official lens favicon from https://visionhausmedia.com.na/favicon.ico. Original logo artwork is stored unchanged in public/visionhaus-logo.png. Header/Studio display the cream artwork on charcoal with object-fit:contain; no logo redrawing or recolouring. App icons are aspect-preserving, padded raster exports from that artwork. Header text can truncate on small widths to preserve action targets. Service-worker cache bumped so the updated artwork is available offline.
+
+
+## V15 · Logo without black backing
+
+Owner requested removal of the black logo background. Header and Studio now display the original transparent official artwork with a dark CSS treatment directly on the light app canvas, without a backing tile. App icon exports also use dark artwork on the light canvas. Original artwork remains unchanged.
