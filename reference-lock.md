@@ -69,3 +69,10 @@ Email handler fixes destination to didi@visionhausmedia.com.na and sets reply_to
 Required runtime secrets: RESEND_API_KEY and EMAIL_FROM (verified sender). Sites environment was empty during implementation. Without these the endpoint returns503, leaves the draft intact and never shows submitted. No real email-provider send or inbox delivery has been verified. Live delivery remains blocked until provider configuration.
 
 Tests cover origin, contact and rental validation, server pricing, fixed recipient, Reply-To, idempotency, rate guard, missing configuration, provider failures and success through a mock. Browser exercised Submit on a production request, received the unconfigured-service error without opening an email app, and retained entered name/email and configuration. No real email was sent.
+
+
+## V11 · Web3Forms submission
+
+Replaced Resend with Web3Forms using the existing WEB3FORM_ACCESS_KEY runtime setting. The key is a public form identifier bound in Web3Forms to the receiving inbox; it is not a secret API token. Free-plan Web3Forms submissions must originate in the browser. The same-origin endpoint validates inputs and recalculates the approved brief, then returns prepared form fields. The browser posts these to the fixed Web3Forms endpoint, stays inside the app, and only completes after an HTTP success with success === true. Client-supplied recipient/subject/total overrides are ignored during preparation. The email field supplies Reply-To. Server guards and draft retention remain.
+
+Web3Forms does not offer the previous Resend idempotency guarantee: retries retain the same reference for recognition but may generate duplicate emails, especially after an uncertain network result. Prepared browser fields can be modified by a caller, so emailed requests and estimates remain subject to studio review. No durable booking, payment or confirmed reservation is created.

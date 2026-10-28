@@ -1,3 +1,4 @@
+import {sendRequest} from './submission.mjs';
 import {rentalItems,rentalInitial,setRentalQty,includedBy,rentalDays,rentalUnits,rentalErrors,rentalLines,rentalTotal,restoreRental,rentalBrief} from './rentals.mjs';
 import {projects,packages,locations,initial,isPodcast,isEditing,isPhoto,isEvent,packageFor,variantFor,hoursValue,shootDays,availableExtras,priceLines,total,equipment,narrative,reviewItems,change,startPackage,restore,briefText,quoteOnly} from './domain.mjs';
 const $=s=>document.querySelector(s);
@@ -63,10 +64,7 @@ async function submitRequest(type,payload){
   if(crypto.subtle)digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
   else{const fingerprint=new TextDecoder().decode(bytes);if(!previewRequestIds.has(fingerprint))previewRequestIds.set(fingerprint,crypto.getRandomValues(new Uint8Array(32)));digest=previewRequestIds.get(fingerprint)}
   const requestId='vh-'+[...digest].map(b=>b.toString(16).padStart(2,'0')).join('');
-  const response=await fetch('/api/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,state:copy,requestId}),signal:AbortSignal.timeout(22000)});
-  const result=await response.json().catch(()=>null);
-  if(!response.ok||result?.ok!==true||!result.reference){const error=new Error('Submission not confirmed');error.userMessage=typeof result?.error==='string'?result.error:'We could not confirm your request. Your draft is saved. Please try again.';throw error}
-  submissionReference=result.reference;return true;
+  submissionReference=await sendRequest({type,state:copy,requestId});return true;
  }catch(error){submissionError=error.name==='TimeoutError'||error.name==='AbortError'?'We could not confirm submission. Your draft is saved. Please try Submit again.':error.userMessage||'We could not confirm submission. Your draft is saved. Please try again.';return false}
  finally{submitting=false}
 }

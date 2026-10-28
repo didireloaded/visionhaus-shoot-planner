@@ -1,7 +1,6 @@
 import {restore,briefText} from '../public/domain.mjs';
 import {restoreRental,rentalErrors,rentalBrief} from '../public/rentals.mjs';
 
-const RECIPIENT='didi@visionhausmedia.com.na';
 const emailPattern=/^[^\s<>@\r\n]+@[^\s<>@\r\n]+\.[^\s<>@\r\n]+$/;
 const safeLine=value=>String(value||'').replace(/[\r\n\u0000-\u001f]/g,' ').trim();
 const json=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -17,7 +16,7 @@ function allowRequest(key){
  if(entry.count>=6)return false;
  entry.count++;return true;
 }
-export async function handleSubmission(request,env,send=fetch){
+export async function handleSubmission(request,env){
  const origin=new URL(request.url).origin;
  if(request.method!=='POST')return json(405,{error:'Use Submit to send your request.'});
  if(request.headers.get('Origin')!==origin)return json(403,{error:'Please submit from the VisionHaus app.'});
@@ -51,18 +50,10 @@ export async function handleSubmission(request,env,send=fetch){
   if(!state.project)return json(400,{error:'Choose a service before submitting.'});
   Object.assign(state,{name,email,phone});brief=briefText(state);
  }
- // Server owns the recipient, sender, rate calculations and email body.
- if(!env.RESEND_API_KEY||!env.EMAIL_FROM)return json(503,{error:'Online submission is temporarily unavailable. Your draft is saved on this device. Please try again later.'});
+ // Prepare validated fields. Web3Forms free-plan sends must originate in the browser.
+ // The public form access key routes to its configured inbox.
+ if(!env.WEB3FORM_ACCESS_KEY)return json(503,{error:'Online submission is temporarily unavailable. Your draft is saved on this device. Please try again later.'});
  if(!allowRequest(request.headers.get('CF-Connecting-IP')||'anonymous'))return json(429,{error:'Too many attempts. Please wait a few minutes before trying again.'});
  const reference=`VH-${raw.requestId.slice(3,15).toUpperCase()}`;
- try{
-  const response=await send('https://api.resend.com/emails',{
-   method:'POST',headers:{'Authorization':`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json','Idempotency-Key':raw.requestId},
-   body:JSON.stringify({from:env.EMAIL_FROM,to:[RECIPIENT],reply_to:email,subject:`${raw.type==='rental'?'Rental':'Production'} request · ${reference} · ${name}`,text:`New client request\nReference: ${reference}\nReply to this email to contact ${name}.\n\n${brief}`}),
-   signal:AbortSignal.timeout(15000),
-  });
-  const result=await response.json().catch(()=>null);
-  if(!response.ok||!result||typeof result.id!=='string')return json(502,{error:'The request could not be confirmed. Your draft is saved. Please try Submit again.'});
-  return json(200,{ok:true,reference});
- }catch{return json(502,{error:'We could not confirm submission. Your draft is saved. Please try Submit again.'})}
+ return json(200,{reference,form:{access_key:env.WEB3FORM_ACCESS_KEY,name,email,phone,subject:`${raw.type==='rental'?'Rental':'Production'} request · ${reference} · ${name}`,message:`New client request\nReference: ${reference}\nReply to this email to contact ${name}.\n\n${brief}`,botcheck:false}});
 }
