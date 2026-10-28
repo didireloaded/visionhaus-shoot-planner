@@ -14,3 +14,7 @@ assert.match(rentalBrief({...s,name:'Test',email:'test@example.com'}),/not a con
 assert.ok(rentalErrors({...s,start:'2026-01-01'},'2026-10-27').some(x=>x.includes('later start')));assert.equal(rentalDays({...s,start:'2026-11-10',end:'2026-11-01'}),0);
 for(const project of ['Colour grading','Sound cleanup & mixing']){const p=change(change(initial(),'service','Editing'),'project',project);assert.ok(quoteOnly(p));assert.deepEqual(priceLines(p),[])}
 console.log('All 20 rate entries, bundle exclusions, quantity caps, date validation, day/week/half-day totals, delivery requirements, draft restoration and quote-only services passed.');
+
+assert.equal(rentalDays({...rentalInitial(),start:'2027-02-30',end:'2027-03-03'}),0,'Impossible dates cannot roll forward into another month');
+assert.equal(rentalDays({...rentalInitial(),start:'2027-02-29',end:'2027-03-03'}),0);
+assert.equal(rentalDays({...rentalInitial(),start:'2028-02-29',end:'2028-03-01'}),2);

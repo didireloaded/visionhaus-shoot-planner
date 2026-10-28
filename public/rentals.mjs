@@ -1,3 +1,4 @@
+import {validDate} from './dates.mjs';
 // VisionHaus_RateCard_2026.pdf, pages 3–4. All amounts NAD, ex VAT.
 export const rentalItems=[
  ['fx3','Cameras','Sony FX3 camera',2100,3000,9000,1,'Cage, 1 battery & 1 card','camera'],
@@ -25,7 +26,7 @@ export const rentalInitial=()=>({items:{},period:'day',start:'',end:'',fulfilmen
 const bundles={bundle:['fx3','sigma24','matte','nd','tripod'],modifiers:['lantern','dome','octa','rectangle'],gopros:['gopro']};
 export function includedBy(s,id){return Object.entries(bundles).find(([parent,parts])=>s.items[parent]>0&&parts.includes(id))?.[0]||''}
 export function setRentalQty(s,id,value){const item=rentalItems.find(i=>i.id===id);if(!item||includedBy(s,id))return s;const n={...s,items:{...s.items}};const count=Math.max(0,Math.min(item.qty,Number.isFinite(value)?Math.floor(value):0));if(count)n.items[id]=count;else delete n.items[id];if(count&&bundles[id])for(const part of bundles[id])delete n.items[part];return n}
-export function rentalDays(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s.start)||!/^\d{4}-\d{2}-\d{2}$/.test(s.end))return 0;const a=Date.parse(s.start),b=Date.parse(s.end);if(!Number.isFinite(a)||!Number.isFinite(b)||b<a)return 0;return Math.round((b-a)/86400000)+1}
+export function rentalDays(s){if(!validDate(s.start)||!validDate(s.end))return 0;const a=Date.parse(s.start),b=Date.parse(s.end);if(!Number.isFinite(a)||!Number.isFinite(b)||b<a)return 0;return Math.round((b-a)/86400000)+1}
 export function rentalUnits(s){const days=rentalDays(s);return !days?0:s.period==='week'?Math.ceil(days/7):s.period==='half'?1:days}
 export function rentalErrors(s,today){const e=[];if(!Object.keys(s.items).length)e.push('Choose at least one item.');if(!rentalDays(s))e.push('Choose valid start and return dates.');if(today&&s.start<today)e.push('Choose today or a later start date.');const d=rentalDays(s);if(s.period==='half'&&d>1)e.push('Half-day hire must start and return on the same date.');if(s.period==='week'&&d>0&&d<5)e.push('Weekly hire is for 5–7 days. Choose daily hire for a shorter rental.');if(s.fulfilment==='Delivery'&&!s.address.trim())e.push('Add the delivery town or address.');return e}
 export function rentalLines(s){const units=rentalUnits(s);return rentalItems.filter(i=>s.items[i.id]>0&&!includedBy(s,i.id)).map(i=>({id:i.id,title:i.title,qty:s.items[i.id],rate:i[s.period],units,amount:i[s.period]*s.items[i.id]*units}))}

@@ -29,3 +29,9 @@ r=await handleSubmission(request({...rental,ack:false},'rental'),env);assert.equ
 r=await handleSubmission(request({...rental,end:'2099-10-01'},'rental'),env);assert.equal(r.status,400);
 for(let i=0;i<6;i++){r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env);assert.equal(r.status,200)}r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env);assert.equal(r.status,429);
 console.log('Web3Forms preparation validates origin/contact/dates and server pricing; browser submission requires provider acceptance, preserves errors, and never succeeds without configuration.');
+
+for(const date of ['2027-02-30','2000-01-01','<img src=x onerror=alert(1)>']){r=await handleSubmission(request({...production,date}),env);assert.equal(r.status,400,'Invalid production dates must be rejected before preparing a form');}
+r=await handleSubmission(request({...production,service:'__proto__'}),env);assert.equal(r.status,400,'Invalid services must return an error without crashing');
+r=await handleSubmission(request({...rental,start:'2099-02-30',end:'2099-03-03'},'rental'),env);assert.equal(r.status,400);
+r=await handleSubmission(request({...production,name:{name:'not a string'}}),env);assert.equal(r.status,400);
+r=await handleSubmission(request({...production,to:'attacker@example.com',subject:'Override'}),env);const controlled=await r.json();assert.equal(controlled.form.to,undefined);assert.match(controlled.form.subject,/Production request/);

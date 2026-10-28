@@ -27,3 +27,18 @@ s=change(change(initial(),'service','Video'),'project','Podcast');s=change(s,'fr
 console.log('Solo constraints, 17-episode scheduling, derived crew/kit, package totals, review-only costs, service filtering, event deliverables and full request export passed.');
 
 let briefState={...initial(),notes:'Client supplied brief'};briefState=change(briefState,'service','Video');briefState=change(briefState,'project','Podcast');assert.equal(briefState.notes,'Client supplied brief');assert.equal(restore(briefState).notes,'Client supplied brief');
+
+// The request brief must preserve the scope shown to the client.
+const music={...change(change(initial(),'service','Video'),'project','Music video'),hours:6,shootStyle:'Both',editLength:'3 minutes'};
+assert.match(briefText(music),/Setting: Both/);
+assert.match(briefText(music),/Finished runtime: 3 minutes/);
+assert.match(briefText(music),/Time on location: 6 hours/);
+assert.equal(restore({service:'__proto__',project:'Podcast'}).project,'');
+assert.equal(restore({service:'toString',project:'Podcast'}).project,'');
+const injected=restore({...music,eventOutput:'unexpected',shootStyle:'unexpected',editLength:'<script>bad</script>'});
+assert.equal(injected.eventOutput,'highlight');assert.equal(injected.shootStyle,'Indoor');assert.equal(injected.editLength,'60 seconds');
+for(const v of ['one','two','three']){const podcast=change(startPackage('podcast',v),'hours',8);assert.equal(restore(podcast).hours,8,'Podcast daily hours survive draft restoration');}
+
+assert.match(briefText(change(startPackage('podcast','three'),'episodes',3)),/3 fully edited episodes/);
+
+assert.equal(startPackage('music','outdoor').shootStyle,'Outdoor');assert.equal(startPackage('reels','both').shootStyle,'Both');assert.match(briefText(startPackage('music','both')),/Setting: Both/);

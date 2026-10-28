@@ -1,3 +1,4 @@
+import {validDate,windhoekToday} from './dates.mjs';
 // Published photography/crew/equipment rates: VisionHaus_RateCard_2026.pdf.
 // Reel, music and podcast starting rates: owner's supplied pricing. Quotes confirm scope.
 export const projects={Video:['Social reel','Music video','Event coverage','Podcast','Interview','Testimonial','Conference','Commercial','Corporate video','Wedding film','Property video','Product video','Tourism & hospitality film','Documentary','Birthday reel','Club-night video','Monthly content','Livestreaming','Brand commercial','Crew hire'],Photo:['Portraits','Headshots','Event photography','Product photography','Nightlife photography','Property photography','Fashion photography'],'Photo + video':['Event coverage','Brand content','Conference'],Editing:['Social reel edit','Podcast edit','Music video edit','Event edit','Commercial edit','Colour grading','Sound cleanup & mixing','Photo editing & retouching']};
@@ -18,6 +19,7 @@ export const isPhoto=s=>s.service==='Photo';
 export const isEvent=s=>['Event coverage','Conference','Event photography','Wedding film'].includes(s.project);
 export const packageFor=s=>packages.find(p=>p.id===s.packageId);
 export const variantFor=s=>packageFor(s)?.variants.find(v=>v.id===s.variantId);
+export const packageInclusions=s=>(variantFor(s)?.features||[]).map(text=>isPodcast(s)&&text==='One fully edited episode'?`${s.episodes} fully edited episode${s.episodes===1?'':'s'}`:text);
 export const hoursValue=s=>s.hours==='Full day'?8:s.hours;
 export const shootDays=s=>isPodcast(s)?Math.ceil(s.episodes/s.perDay):1;
 export const availableExtras=s=>s.project==='Crew hire'?[]:extras.filter(e=>isPhoto(s)?['rush','retouch','raw'].includes(e.id):!['retouch'].includes(e.id));
@@ -104,10 +106,10 @@ export function change(s,key,value){
 }
 export function startPackage(id,variantId){
  const p=packages.find(p=>p.id===id);if(!p)return initial();const v=p.variants.find(v=>v.id===variantId)||p.variants[0];
- return {...initial(),mode:'package',packageId:p.id,variantId:v.id,service:p.service,project:p.project,section:'shoot',hours:v.hours||4,cameras:v.cameras||1,people:p.id==='podcast'&&v.cameras===1?1:2,framing:p.id==='podcast'&&v.cameras===1?'Direct to camera':v.cameras===3?'Full coverage':'Conversation',perDay:1,sound:p.service!=='Photo',liveEdits:p.id==='event'&&v.id==='premium',drone:p.id==='event'&&v.id==='premium',eventOutput:'highlight',editLength:p.id==='event'?'3 minutes':'60 seconds'};
+ return {...initial(),mode:'package',packageId:p.id,variantId:v.id,service:p.service,project:p.project,section:'shoot',hours:v.hours||4,shootStyle:({outdoor:'Outdoor',indoor:'Indoor',both:'Both'})[v.id]||'Indoor',cameras:v.cameras||1,people:p.id==='podcast'&&v.cameras===1?1:2,framing:p.id==='podcast'&&v.cameras===1?'Direct to camera':v.cameras===3?'Full coverage':'Conversation',perDay:1,sound:p.service!=='Photo',liveEdits:p.id==='event'&&v.id==='premium',drone:p.id==='event'&&v.id==='premium',eventOutput:'highlight',editLength:p.id==='event'?'3 minutes':'60 seconds'};
 }
 export function restore(raw){
- if(!raw||typeof raw!=='object'||!projects[raw.service])return initial();
+ if(!raw||typeof raw!=='object'||!Object.hasOwn(projects,raw.service))return initial();
  let n=raw.mode==='package'&&packages.some(p=>p.id===raw.packageId)?startPackage(raw.packageId,raw.variantId):change(initial(),'service',raw.service);
  if(raw.mode!=='package'&&projects[raw.service].includes(raw.project))n=change(n,'project',raw.project);
  for(const[key,min,max]of[['crewCount',1,10],['subjects',1,200],['people',1,4],['episodes',1,17],['perDay',1,17],['episodeMinutes',15,180],['cameras',1,3]])if(Number.isInteger(raw[key])&&raw[key]>=min&&raw[key]<=max)n[key]=raw[key];
@@ -120,18 +122,25 @@ export function restore(raw){
  if(locations.includes(raw.location))n.location=raw.location;
  for(const key of['sound','lighting','liveEdits','gimbal','drone','teleprompter'])if(typeof raw[key]==='boolean')n[key]=raw[key];
  if(['Camera operator','Photographer','Editor','Sound operator','Production assistant'].includes(raw.crewRole))n.crewRole=raw.crewRole;
- for(const key of['eventOutput','editLength','shootStyle'])if(typeof raw[key]==='string'&&raw[key].length<60)n[key]=raw[key];
+ for(const [key,values]of Object.entries({eventOutput:['highlight','full'],editLength:['30 seconds','60 seconds','3 minutes','Long-form','Full recording'],shootStyle:['Indoor','Outdoor','Both']}))if(values.includes(raw[key]))n[key]=raw[key];
  for(const key of['venue','date','name','email','phone','notes'])if(typeof raw[key]==='string')n[key]=raw[key].slice(0,key==='notes'?6000:150);
  n.extras=availableExtras(n).filter(e=>Array.isArray(raw.extras)&&raw.extras.includes(e.id)).map(e=>e.id);
  if(['project','shoot','equipment','delivery','review'].includes(raw.section))n.section=raw.section;
  return n;
 }
+export function productionErrors(s,today=windhoekToday()){
+ if(!Object.hasOwn(projects,s.service)||!projects[s.service].includes(s.project))return ['Choose a service before submitting.'];
+ if(s.date&&(!validDate(s.date)||s.date<today))return ['Choose today or a later valid date, or leave the date open.'];
+ return [];
+}
 export function briefText(s){
  const lines=['VISIONHAUS PRODUCTION REQUEST',`Name: ${s.name}`,`Email: ${s.email}`,`Phone: ${s.phone||'Not supplied'}`,'',s.mode==='package'?`Package: ${packageFor(s)?.title} / ${variantFor(s)?.label}`:'Custom production',narrative(s),`Location: ${s.location}${s.venue?` / ${s.venue}`:''}`,`Preferred date: ${s.date||'Flexible'}`];
  if(isPhoto(s)&&!isEvent(s))lines.push(`Subjects / products: ${s.subjects}`);
  if(isEditing(s))lines.push(`Finished runtime: ${s.editLength}`);
+ if(!isEditing(s)&&!isPodcast(s))lines.push(`Time on location: ${s.hours}${typeof s.hours==='number'?' hours':''}`);
+ if(!isPhoto(s)&&!isEvent(s)&&!isPodcast(s)&&!isEditing(s)&&s.project!=='Crew hire'){lines.push(`Setting: ${s.shootStyle}`);if(s.mode==='custom')lines.push(`Finished runtime: ${s.editLength}`);}
  if(isPodcast(s))lines.push(`Schedule: ${s.episodes} episodes / up to ${s.perDay} per day / ${shootDays(s)} recording days`,`Episode length: ${s.episodeMinutes} minutes`,`Time per day: ${s.hours} ${typeof s.hours==='number'?'hours':''}`);
- if(s.mode==='package')lines.push('','PACKAGE INCLUSIONS',...variantFor(s).features.map(x=>`- ${x}`));
+ if(s.mode==='package')lines.push('','PACKAGE INCLUSIONS',...packageInclusions(s).map(x=>`- ${x}`));
  lines.push('','REQUESTED SETUP',...equipment(s).map(x=>`- ${x}`),'','EXTRAS',...availableExtras(s).filter(e=>s.extras.includes(e.id)).map(e=>`- ${e.title}`),'','PRICED ITEMS',...priceLines(s).map(l=>`${l.label}: N$ ${l.amount.toLocaleString('en-NA')}`),`Starting estimate: ${quoteOnly(s)?'Quote required':`N$ ${total(s).toLocaleString('en-NA')} ex VAT`}`,'','TO QUOTE / CONFIRM',...reviewItems(s).map(x=>`- ${x}`),'',`Notes: ${s.notes||'None'}`,'','This is a quote request. Dates and final cost require confirmation.');
  return lines.join('\n');
 }
