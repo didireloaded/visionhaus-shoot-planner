@@ -4,7 +4,7 @@ The booking UI stays unchanged. The client sees “Request submitted. VisionHaus
 
 ## Setup
 
-Server-only Sites secrets: `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_ORGANIZATION_ID`, `ZOHO_TOKEN_KEY` (32 random bytes in hex), `ZOHO_SETUP_KEY` (random owner-only setup password). Keep `WEB3FORM_ACCESS_KEY` for the existing inbox notification. Never put credentials in source or client assets.
+Server-only Sites secrets: `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_ORGANIZATION_ID`, `ZOHO_TOKEN_KEY` (32 random bytes in hex), `ZOHO_SETUP_KEY` (random owner-only setup password). `ZOHO_SALES_VAT_ID` identifies the organisation’s existing 15% sales VAT (validated before quote creation). Keep `WEB3FORM_ACCESS_KEY` for the existing inbox notification. Never put credentials in source or client assets.
 
 The registered US Zoho server application redirects to `/api/zoho/callback` on this site's exact HTTPS origin. Open `/zoho-connect`, enter the owner setup key and approve the displayed Zoho permissions. The account must have access to the existing VisionHaus Books organisation with NAD currency. OAuth consent activates quotation creation; until then the existing Web3Forms flow continues.
 
@@ -14,7 +14,7 @@ The refresh token is encrypted with AES-GCM in the site D1 database. OAuth state
 
 ## Behaviour and recovery
 
-All prices are recalculated from restored, validated domain state. Books drafts contain the approved starting prices, tax-inclusive flag, full brief and explicit review notes. VAT/tax IDs are not guessed: the owner checks tax treatment before sending. Unknown services use a zero-rate placeholder clearly marked PRICE TO BE CONFIRMED; unpriced extras are listed for review, never treated as a final free service. Quotes remain drafts, including fully priced packages.
+All prices are recalculated from restored, validated domain state. Books drafts contain the approved starting prices, tax-inclusive flag, full brief and explicit review notes. The configured existing Sales VAT ID is validated at 15% and applied to lines. Mixed tax-inclusive package and ex-VAT extra amounts are normalised to one estimate basis without adding VAT twice. The owner reviews the draft before sending. Unknown services use a zero-rate placeholder clearly marked PRICE TO BE CONFIRMED; unpriced extras are listed for review, never treated as a final free service. Quotes remain drafts, including fully priced packages.
 
 D1 persists full briefs, external references, customer and estimate IDs. A canonical server hash deduplicates the same brief across retries and Worker instances; UI step changes do not create a new request. A two-minute lease prevents overlapping external writes. Before every retry, Books is searched for the external reference to reconcile a successful remote write whose response was lost. Retry Submit after two minutes if creation is not confirmed. A client only sees success once a Books draft is confirmed (or Web3Forms accepted a request while Zoho is not connected). Supplemental inbox notification failure does not undo a confirmed draft.
 

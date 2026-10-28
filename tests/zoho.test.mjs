@@ -9,7 +9,7 @@ import {sendRequest} from '../public/submission.mjs';
 // Exercise real SQLite migration/constraints and SQL, with D1's async call shape.
 const db=new DatabaseSync(':memory:');db.exec(await readFile(new URL('../drizzle/0000_zoho_quotes.sql',import.meta.url),'utf8'));
 const DB={prepare(sql){let values=[];const stmt=db.prepare(sql);return {bind(...v){values=v;return this},async first(){return stmt.get(...values)||null},async run(){return stmt.run(...values)}}}};
-const env={DB,ZOHO_SETUP_KEY:'test-owner-key',ZOHO_CLIENT_ID:'test-client',ZOHO_CLIENT_SECRET:'test-secret',ZOHO_TOKEN_KEY:'a'.repeat(64),ZOHO_ORGANIZATION_ID:'904412165'};
+const env={DB,ZOHO_SETUP_KEY:'test-owner-key',ZOHO_CLIENT_ID:'test-client',ZOHO_CLIENT_SECRET:'test-secret',ZOHO_TOKEN_KEY:'a'.repeat(64),ZOHO_ORGANIZATION_ID:'904412165',ZOHO_SALES_VAT_ID:'sales-vat-15'};
 const base='https://visionhaus.example';
 let calls=[],estimates=[],contactCreated=0,failAfterCreate=false;
 const mock=async(url,options={})=>{
@@ -19,6 +19,7 @@ const mock=async(url,options={})=>{
  assert.equal(options.headers.Authorization,'Zoho-oauthtoken access');
  const resource=u.pathname.split('/').at(-1);
  if(resource==='organizations')return Response.json({code:0,organizations:[{organization_id:env.ZOHO_ORGANIZATION_ID,name:'VisionHaus',currency_code:'NAD',currency_id:'currency-nad'}]});
+ if(resource==='taxes')return Response.json({code:0,taxes:[{tax_id:'sales-vat-15',tax_percentage:15}]});
  if(resource==='contacts'&&options.method==='POST'){contactCreated++;return Response.json({code:0,contact:{contact_id:'customer-1'}})}
  if(resource==='contacts')return Response.json({code:0,contacts:contactCreated?[{contact_id:'customer-1',contact_type:'customer',email:'client@example.com',currency_id:'currency-nad'}]:[]});
  if(resource==='estimates'&&options.method==='POST'){
@@ -67,9 +68,9 @@ const concurrent={...state,notes:'Concurrent submit'};
 const parallel=await Promise.allSettled([createZohoQuote(request,env,connection,'production',concurrent,briefText(concurrent),mock),createZohoQuote(request,env,connection,'production',concurrent,briefText(concurrent),mock)]);
 assert.equal(parallel.filter(x=>x.status==='fulfilled').length,1);assert.equal(estimates.length,3,'A database lease prevents concurrent duplicate quotations');
 
-const custom=change(change(initial(),'service','Video'),'project','Documentary');
+const custom=change(change(initial(),'service','Video'),'project','Crew hire');
 const unknown=zohoEstimate('production',custom,'Full brief','VH-TEST','customer-1');assert.equal(unknown.line_items[0].rate,0);assert.match(unknown.line_items[0].name,/PRICE TO BE CONFIRMED/);
-const extras=zohoEstimate('production',{...startPackage('reels','outdoor'),extras:['captions']},'Brief','VH-TEST','customer-1');assert.equal(extras.line_items[0].rate,1800);assert.match(extras.notes,/To confirm: Captions/);
+const extras=zohoEstimate('production',{...startPackage('reels','outdoor'),extras:['captions']},'Brief','VH-TEST','customer-1');assert.equal(extras.line_items[0].rate,1565.217391);assert.equal(extras.line_items[1].rate,1800);assert.equal(extras.is_inclusive_tax,false);assert.ok(!extras.notes.includes('To confirm: Captions'));
 const rental={...setRentalQty(rentalInitial(),'fx3',1),start:'2099-01-01',end:'2099-01-02'};
 const equipment=zohoEstimate('rental',rental,'Rental brief','VH-TEST','customer-1');assert.equal(equipment.line_items[0].rate,3000);assert.equal(equipment.line_items[0].quantity,2);assert.equal(equipment.is_inclusive_tax,false);
 

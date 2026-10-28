@@ -12,7 +12,7 @@ s.fulfilment='Delivery';assert.ok(rentalErrors(s).some(x=>x.includes('address'))
 const restored=restoreRental({...s,items:{fx3:999,bundle:1,gopro:999,gopros:1,unknown:3},period:'garbage'});assert.equal(restored.period,'day');assert.deepEqual(restored.items,{bundle:1,gopros:1});assert.ok(!rentalLines(restored).some(x=>x.id==='fx3'));
 assert.match(rentalBrief({...s,name:'Test',email:'test@example.com'}),/not a confirmed reservation/);assert.match(rentalBrief(s),/deposit and insurance excluded/);
 assert.ok(rentalErrors({...s,start:'2026-01-01'},'2026-10-27').some(x=>x.includes('later start')));assert.equal(rentalDays({...s,start:'2026-11-10',end:'2026-11-01'}),0);
-for(const project of ['Colour grading','Sound cleanup & mixing']){const p=change(change(initial(),'service','Editing'),'project',project);assert.ok(quoteOnly(p));assert.deepEqual(priceLines(p),[])}
+for(const [project,amount] of [['Colour grading',12000],['Sound cleanup & mixing',5000]]){const p=change(change(initial(),'service','Editing'),'project',project);assert.equal(quoteOnly(p),false);assert.equal(priceLines(p)[0].amount,amount)}
 console.log('All 20 rate entries, bundle exclusions, quantity caps, date validation, day/week/half-day totals, delivery requirements, draft restoration and quote-only services passed.');
 
 assert.equal(rentalDays({...rentalInitial(),start:'2027-02-30',end:'2027-03-03'}),0,'Impossible dates cannot roll forward into another month');

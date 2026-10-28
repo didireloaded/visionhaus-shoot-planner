@@ -1,4 +1,4 @@
-import {priceLines,reviewItems,taxLabel} from '../public/domain.mjs';
+import {priceLines,reviewItems,taxLabel,quoteOnly} from '../public/domain.mjs';
 import {rentalLines} from '../public/rentals.mjs';
 import {windhoekToday} from '../public/dates.mjs';
 
@@ -88,12 +88,16 @@ export async function handleZoho(request,env,send=fetch){
  return zohoJson(404,{error:'Not found.'});
 }
 
-export function zohoEstimate(type,state,brief,reference,customerId){
- const lines=type==='rental'?rentalLines(state).map(l=>({name:l.title,quantity:l.qty*l.units,rate:l.rate})):priceLines(state).map(l=>({name:l.label,quantity:1,rate:l.amount}));
+export function zohoEstimate(type,state,brief,reference,customerId,taxId){
+ const sourceLines=type==='production'?priceLines(state):[];
+ const inclusive=type==='production'&&sourceLines.length>0&&sourceLines.every(l=>l.taxInclusive);
+ const lines=type==='rental'?rentalLines(state).map(l=>({name:l.title,quantity:l.qty*l.units,rate:l.rate})):sourceLines.map(l=>({name:l.label,quantity:1,rate:!inclusive&&l.taxInclusive?Math.round(l.amount/1.15*1000000)/1000000:l.amount}));
+ if(type==='production'&&quoteOnly(state))lines.unshift({name:`${state.project} — PRICE TO BE CONFIRMED`,description:'VisionHaus must confirm the service price before sending.',quantity:1,rate:0});
+ for(const line of lines)if(taxId)line.tax_id=taxId;
  const review=type==='rental'?['Delivery, deposit, insurance and availability require review.']:reviewItems(state);
  const tax=type==='rental'?'Ex VAT':taxLabel(state);
  const notes=`DRAFT — VISIONHAUS REVIEW REQUIRED BEFORE SENDING\n${tax}. Tax treatment and full scope must be checked in Books before sending.\n${review.map(x=>'To confirm: '+x).join('\n')}\n\n${brief}`;
- return {customer_id:customerId,reference_number:reference,date:windhoekToday(),is_inclusive_tax:tax==='Tax inclusive',line_items:lines.length?lines:[{name:`${state.project||'Requested service'} — PRICE TO BE CONFIRMED`,description:'Draft placeholder only. VisionHaus must price this service before sending.',quantity:1,rate:0}],notes,terms:'Quotation subject to scope, availability and tax review. This request does not confirm a booking. Booking requires VisionHaus approval and the agreed deposit.'};
+ return {customer_id:customerId,reference_number:reference,date:windhoekToday(),is_inclusive_tax:inclusive,line_items:lines.length?lines:[{name:`${state.project||'Requested service'} — PRICE TO BE CONFIRMED`,description:'Draft placeholder only. VisionHaus must price this service before sending.',quantity:1,rate:0}],notes,terms:'Quotation subject to scope, availability and tax review. This request does not confirm a booking. Booking requires VisionHaus approval and the agreed deposit.'};
 }
 
 // D1 owns deduplication and a lease across Worker instances. A stale lease is
@@ -132,7 +136,11 @@ export async function createZohoQuote(request,env,connection,type,state,brief,se
     if(!customerId)throw new Error('Zoho customer unavailable');
     await env.DB.prepare('UPDATE quote_requests SET customer_id = ? WHERE id = ?').bind(customerId,id).run();
    }
-   const quote=zohoEstimate(type,state,brief,reference,customerId);
+   // Use the organisation's existing Sales VAT, verified by ID and percentage.
+   const taxes=await api('settings/taxes');
+   const vat=taxes.taxes?.find(t=>t.tax_id===env.ZOHO_SALES_VAT_ID&&Number(t.tax_percentage)===15);
+   if(!vat)throw new Error('Configured Sales VAT unavailable');
+   const quote=zohoEstimate(type,state,brief,reference,customerId,vat.tax_id);
    const result=await api('estimates',{method:'POST',body:JSON.stringify(quote)});
    estimateId=result.estimate?.estimate_id;
    if(!estimateId)throw new Error('Zoho draft unavailable');

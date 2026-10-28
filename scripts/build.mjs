@@ -2,7 +2,7 @@ import {readFile,writeFile,mkdir,readdir,rm,copyFile} from 'node:fs/promises';
 import path from 'node:path';
 const root=process.cwd();
 const publicDir=path.join(root,'public');
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webmanifest':'application/manifest+json'};
+const mime={'.pdf':'application/pdf','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webmanifest':'application/manifest+json'};
 const assets={};
 async function scan(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())await scan(file);else{const url='/'+path.relative(publicDir,file).split(path.sep).join('/');assets[url]={body:(await readFile(file)).toString('base64'),type:mime[path.extname(file)]||'application/octet-stream'}}}}
 await scan(publicDir);
