@@ -14,7 +14,28 @@ let submitting=false,submissionError='',submissionReference='';
 const previewRequestIds=new Map();
 let state=initial(),view='home',filter='All',detailId='reels',variantId='',summaryOpen=false,lastScene='',saved=[];
 try{const d=JSON.parse(localStorage.getItem(DRAFT));if(d&&Date.now()-d.savedAt<7*86400000)state=restore(d.state);saved=JSON.parse(localStorage.getItem('vh-package-favourites'))||[];if(!Array.isArray(saved))saved=[]}catch{}
-function persist(){try{localStorage.setItem('vh-rental-draft',JSON.stringify({savedAt:Date.now(),state:rental}));localStorage.setItem(DRAFT,JSON.stringify({savedAt:Date.now(),state}));localStorage.setItem('vh-package-favourites',JSON.stringify(saved))}catch{}}
+const persistedValues=new Map();
+function persist(){
+ for(const [key,value,draft]of[['vh-rental-draft',rental,true],[DRAFT,state,true],['vh-package-favourites',saved,false]])try{
+  const serialized=JSON.stringify(value);if(persistedValues.get(key)===serialized)continue;
+  localStorage.setItem(key,draft?JSON.stringify({savedAt:Date.now(),state:value}):serialized);persistedValues.set(key,serialized);
+ }catch{}
+}
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+function motion(element,frames,duration=200){
+ if(!element||reducedMotion.matches||typeof element.animate!=='function')return;
+ element.getAnimations().forEach(a=>a.cancel());
+ element.animate(frames,{duration,easing:'cubic-bezier(.2,0,0,1)'});
+}
+const renderedRegions=new Map();
+function mountRegion(selector,markup,force=false){
+ // Keep stable navigation/header nodes and regenerate icons only in changed regions.
+ const cacheKey=String(submitting)+markup;
+ if(!force&&renderedRegions.get(selector)===cacheKey)return;
+ const root=$(selector);root.innerHTML=markup;renderedRegions.set(selector,cacheKey);
+ window.lucide.createIcons({root,attrs:{'stroke-width':1.7}});
+}
+
 function heading(title,sub=''){return `<div class="page-heading"><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div>`}
 function button(label,attr='',cls='primary'){return `<button class="${cls}" ${attr}>${label}${icon('arrow-right')}</button>`}
 function header(){return `<div class="topbar"><button class="brand-avatar" data-view="studio" aria-label="About VisionHaus"><img src="/visionhaus-logo.png" alt="" width="1736" height="704"></button><button class="greeting-brand" data-view="home"><strong>Hi, creator</strong><small>Let's make your next production</small></button><button class="icon-button" id="find-package" aria-label="Find a package">${icon('search')}</button><button class="icon-button" data-view="plan" aria-label="Build a custom production">${icon('sliders-horizontal')}</button></div>`}
@@ -51,10 +72,23 @@ function completion(){return `<section class="completion"><span class="completio
 function savedPage(){const items=packages.filter(p=>saved.includes(p.id));return `<section class="home-page">${heading('Saved packages','A few ideas for later.')} ${items.length?`<div class="package-grid">${items.map(packageCard).join('')}</div>`:`<div class="empty-state">${icon('heart')}<p>Save a package using its heart.</p>${button('Explore packages','data-view="home"')}</div>`}</section>`}
 function studio(){return `<section class="studio-page"><div class="studio-logo"><img src="/visionhaus-logo.png" alt="VisionHaus" width="1736" height="704"></div>${heading('VisionHaus Media','Film. Photography. Your next idea.')}<div class="studio-info"><span>${icon('map-pin')}Windhoek, Namibia</span><a href="mailto:didi@visionhausmedia.com.na">${icon('mail')}didi@visionhausmedia.com.na</a><a href="https://visionhausmedia.com.na/" target="_blank" rel="noopener noreferrer">${icon('globe')}visionhausmedia.com.na</a><span>${icon('shield-check')}No account needed</span></div><p class="field-hint">Your draft stays on this device for 7 days. Requests go directly to VisionHaus. Dates are confirmed after quote review.</p><button class="secondary" id="reset">${icon('rotate-ccw')}Clear draft</button></section>`}
 function controls(){if(view==='hire'||view==='home'&&homeMode==='rentals')return rentalControls();if(view==='detail'){const p=packages.find(p=>p.id===detailId),v=p.variants.find(v=>v.id===variantId)||p.variants[0];return `<div class="detail-dock"><span><small>${taxLabel(startPackage(p.id,v.id))}</small><strong>${money(v.price)}</strong></span>${button('Choose package','id="book-package"')}</div>`}if(view!=='plan'||!state.project||state.section==='project'||state.complete)return '';return `<div class="mobile-plan-controls"><details class="mobile-disclosure" ${summaryOpen?'open':''}><summary id="summary-toggle" aria-label="Expand production summary"><span>${state.mode==='package'?'Package estimate':'Priced so far'}</span><strong class="${quoteOnly(state)?'quote-price':''}">${quoteOnly(state)?'Quote required':money(total(state))}${icon('chevron-up')}</strong><small>${taxLabel(state)} · ${pendingExtras(state).length?'excludes price-pending extras':'final quote follows'}</small></summary><div class="mobile-summary">${summaryContent()}</div></details>${button(state.section==='review'?'Submit':'Continue','data-next','primary dock-next')}</div>`}
-function render(){persist();const scene=`${view}:${state.section}:${state.complete}`;$('#app-header').innerHTML=header();$('#app').innerHTML=({home,detail,plan,hire:rentalCheckout,brief:briefScreen,saved:savedPage,studio})[view]();$('#control-surface').innerHTML=controls();$('#tab-bar').innerHTML=tabBar();document.body.dataset.view=view;window.lucide.createIcons({attrs:{'stroke-width':1.7}});bind();if(scene!==lastScene&&!matchMedia('(prefers-reduced-motion: reduce)').matches)$('#app').animate([{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'translateY(0)'}],{duration:240,easing:'cubic-bezier(.2,0,0,1)'});lastScene=scene;if(submitting){document.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);document.querySelectorAll('[data-next],[data-rental-next]').forEach(el=>{el.textContent='Submitting…';el.setAttribute('aria-busy','true')})}}
+function render(){
+ persist();
+ const scene=view==='home'?`${view}:${homeMode}:${filter}:${rentalCategory}`:view==='detail'?`${view}:${detailId}`:view==='hire'?`${view}:${rental.step}:${rentalPrepared}`:view==='plan'?`${view}:${state.project}:${state.section}:${state.complete}`:view;
+ mountRegion('#app-header',header());
+ mountRegion('#app',({home,detail,plan,hire:rentalCheckout,brief:briefScreen,saved:savedPage,studio})[view](),true);
+ mountRegion('#control-surface',controls());mountRegion('#tab-bar',tabBar());
+ document.body.dataset.view=view;bind();
+ if(scene!==lastScene){
+  const target=view==='plan'?$('#task')||$('#app'):view==='home'&&lastScene.startsWith('home:')?$('.package-grid')||$('.rental-list')||$('#app'):$('#app');
+  motion(target,[{opacity:.35,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],220);
+ }
+ lastScene=scene;
+ if(submitting){document.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);document.querySelectorAll('[data-next],[data-rental-next]').forEach(el=>{el.textContent='Submitting…';el.setAttribute('aria-busy','true')})}
+}
 function navigate(v){view=v;summaryOpen=false;render();scrollTo({top:0});focusTitle()}
 function focusTitle(){const h=$('#task h1')||$('h1');if(h){h.tabIndex=-1;h.focus({preventScroll:true})}}
-function choose(key,value){const before=total(state);state=change(state,key,value);render();if(total(state)!==before){$('#price-announcement').textContent=`Starting estimate ${money(total(state))}. Additional items quoted after review.`;if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.querySelectorAll('.estimate>strong,#summary-toggle>strong').forEach(e=>e.animate([{opacity:.3,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:180,easing:'ease-out'}))}}
+function choose(key,value){const before=total(state);state=change(state,key,value);render();if(total(state)!==before){$('#price-announcement').textContent=`Starting estimate ${money(total(state))}. Additional items quoted after review.`;document.querySelectorAll('.estimate>strong,#summary-toggle>strong').forEach(e=>motion(e,[{opacity:.55,transform:'translateY(3px)'},{opacity:1,transform:'translateY(0)'}],160))}}
 function custom(service='',project=''){state.notes='';state=change(state,'service',service);if(project)state=change(state,'project',project);navigate('plan')}
 function submissionFeedback(){return submissionError?`<p class="submission-error" role="alert">${esc(submissionError)}</p>`:''}
 async function submitRequest(type,payload){
@@ -88,7 +122,7 @@ function bind(){
  if($('#book-package'))$('#book-package').onclick=()=>{const contact={name:state.name,email:state.email,phone:state.phone};state={...startPackage(detailId,variantId),...contact};navigate('plan')};
  document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>{const key=b.dataset.key;const numeric=['clipCount','retouchCount','crewCount','subjects','people','episodes','perDay','episodeMinutes','cameras','hours'].includes(key)&&b.dataset.value!=='Full day';const label=b.getAttribute('aria-label');choose(key,numeric?Number(b.dataset.value):b.dataset.value);[...document.querySelectorAll('[data-key]')].find(e=>label?e.getAttribute('aria-label')===label:e.dataset.key===key&&e.dataset.value===b.dataset.value)?.focus({preventScroll:true})});
  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{const k=b.dataset.toggle;choose(k,!state[k]);document.querySelector(`[data-toggle="${k}"]`)?.focus({preventScroll:true})});
- document.querySelectorAll('[data-extra]').forEach(b=>b.onclick=()=>{const id=b.dataset.extra;choose('extras',state.extras.includes(id)?state.extras.filter(x=>x!==id):[...state.extras,id]);document.querySelector(`[data-extra="${id}"]`)?.focus({preventScroll:true})});
+ document.querySelectorAll('[data-extra]').forEach(b=>b.onclick=()=>{const id=b.dataset.extra;choose('extras',state.extras.includes(id)?state.extras.filter(x=>x!==id):[...state.extras,id]);motion(document.querySelector(`[data-extra="${id}"] .radio-mark`),[{transform:'scale(.82)'},{transform:'scale(1)'}],160);document.querySelector(`[data-extra="${id}"]`)?.focus({preventScroll:true})});
  document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>{state.section=b.dataset.section;summaryOpen=false;render();scrollTo({top:0});focusTitle()});
  for(const id of ['location','date'])if($('#'+id))$('#'+id).onchange=e=>{choose(id,e.target.value);$('#'+id)?.focus({preventScroll:true})};
  for(const id of ['name','email','phone','notes','venue'])if($('#'+id))$('#'+id).oninput=e=>{state[id]=e.target.value;persist()};

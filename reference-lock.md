@@ -127,3 +127,10 @@ Full-event recording is still quote-only: the prior reviewed card confirms12500/
 ## V20 · Clear price-on-review extras
 
 Owner found selecting cutdowns/source footage appeared free. Kept existing selection and pricing rules: conference cutdowns remain2000 each; other cutdowns and source-footage costs stay job-specific. Unselected badges now say Price on review, selected badges Price pending. Selecting displays an immediate explanation in the row, with footage/storage-specific detail, and summaries/review/brief state these requests are excluded from the displayed total and priced after discussion. No modal, invented charge or extra approval step. Checked draft restoration retains the selected extras.
+
+
+## V21 · Interaction polish and subtle motion
+
+Locked target: existing compact light VisionHaus interface, per owner request to optimise and add subtle animation. Refero bundled motion.md anchors: functional feedback/continuity, 120–220ms, 2–6px movement, opacity/transform only, reduced-motion respected. Preserve all layouts, approved prices, quote behaviour and content.
+
+Native Web Animations handle step/filter/rental transitions and changed totals; the selection check gets a short scale settle. CSS adds restrained hover, pending-explanation entry and completion feedback. No looping hero, animation library, artificial loading delay or flow gate. Reduced-motion users receive no added motion, and existing CSS overrides remain. Cache static header/nav/control markup and initialise Lucide only inside changed regions; busy-state transitions still remount controls to restore enabled state. Avoid unchanged localStorage draft writes, retaining real-change timestamps and storage error handling.

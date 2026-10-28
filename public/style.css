@@ -71,3 +71,19 @@ button,input,textarea,select,summary{scroll-margin-block:24px}
 .brand-avatar img,.studio-logo img{filter:brightness(0);opacity:.9}
 
 .extras-list .extra-status{max-width:72px;white-space:normal;text-align:right;line-height:1.4}.pending-extra-note{padding:12px;border-radius:12px;background:var(--soft);color:var(--ink)}
+
+/* Functional motion: brief feedback and continuity, no looping decoration. */
+@media (prefers-reduced-motion:no-preference){
+ .choice,.filter-chips button,.variant-pills button,.segments button,.service-switch button{transition:background-color 140ms ease,color 140ms ease,transform 120ms ease}
+ .radio-mark,.save-button,.choice-icon{transition:background-color 140ms ease,border-color 140ms ease,color 140ms ease,transform 140ms ease}
+ .pending-extra-note{animation:pending-note-in 180ms cubic-bezier(.2,0,0,1)}
+ .completion-icon{animation:confirmation-in 220ms cubic-bezier(.2,0,0,1)}
+ details[open]>.review-list,details[open]>.kit-grid{animation:pending-note-in 160ms ease-out}
+ @keyframes pending-note-in{from{opacity:.35;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+ @keyframes confirmation-in{from{opacity:.4;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference){
+ .package-open:hover .package-service-icon{transform:translateY(-2px)}
+ .package-service-icon{transition:transform 160ms ease-out}
+ .icon-button:hover,.save-button:hover{background-color:var(--soft)}
+}
