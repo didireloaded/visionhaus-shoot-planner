@@ -69,3 +69,5 @@ button,input,textarea,select,summary{scroll-margin-block:24px}
 
 /* Render the transparent official mark in dark ink without a backing tile. */
 .brand-avatar img,.studio-logo img{filter:brightness(0);opacity:.9}
+
+.extras-list .extra-status{max-width:72px;white-space:normal;text-align:right;line-height:1.4}.pending-extra-note{padding:12px;border-radius:12px;background:var(--soft);color:var(--ink)}

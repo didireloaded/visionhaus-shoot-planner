@@ -21,7 +21,7 @@ export const retainers=[
 export const isRetainer=s=>s.project==='Monthly content';
 export const retainerFor=s=>retainers.find(r=>r.id===s.retainerTier)||retainers[0];
 export const isFinishing=s=>['Colour grading','Sound cleanup & mixing'].includes(s.project);
-export const extras=[{id:'clips',title:'3 vertical cutdowns',description:'Short edits for social',price:null,icon:'smartphone'},{id:'captions',title:'Captions',description:'Subtitles on your edits · per request',price:1800,icon:'captions'},{id:'rush',title:'Fast delivery',description:'Deadline confirmed before approval · per request',price:2000,icon:'timer'},{id:'raw',title:'Source footage',description:'Transfer & drive quoted',price:null,icon:'hard-drive'},{id:'retouch',title:'Extra retouching',description:'N$250 per image',price:250,icon:'sparkles'},{id:'graphics',title:'Motion graphics',description:'Beyond included graphics · per shoot',price:1800,icon:'layers'}];
+export const extras=[{id:'clips',title:'3 vertical cutdowns',description:'Short edits for social · priced for your project',quoteNote:'Requested. VisionHaus will discuss the edit scope and confirm a separate price. Not included in this estimate.',price:null,icon:'smartphone'},{id:'captions',title:'Captions',description:'Subtitles on your edits · per request',price:1800,icon:'captions'},{id:'rush',title:'Fast delivery',description:'Deadline confirmed before approval · per request',price:2000,icon:'timer'},{id:'raw',title:'Source footage',description:'Price depends on footage, transfer and storage',quoteNote:'Requested. VisionHaus will discuss your footage and confirm a separate price. Drives or other storage cost extra. Not included in this estimate.',price:null,icon:'hard-drive'},{id:'retouch',title:'Extra retouching',description:'N$250 per image',price:250,icon:'sparkles'},{id:'graphics',title:'Motion graphics',description:'Beyond included graphics · per shoot',price:1800,icon:'layers'}];
 export const initial=()=>({mode:'custom',packageId:'',variantId:'',service:'',project:'',section:'project',crewRole:'Camera operator',crewCount:1,subjects:1,people:2,episodes:1,perDay:1,episodeMinutes:30,hours:4,cameras:2,framing:'Conversation',eventOutput:'highlight',editLength:'60 seconds',location:'Windhoek',venue:'',date:'',shootStyle:'Indoor',sound:true,lighting:true,liveEdits:false,gimbal:false,drone:false,teleprompter:false,extras:[],retainerTier:'essential',finishingFormat:'once',clipCount:3,retouchCount:1,extraLighting:false,extraSound:false,extraPhotographer:false,name:'',email:'',phone:'',notes:'',complete:false});
 export const isPodcast=s=>s.project==='Podcast';
 export const isEditing=s=>s.service==='Editing';
@@ -33,6 +33,7 @@ export const packageInclusions=s=>(variantFor(s)?.features||[]).map(text=>isPodc
 export const hoursValue=s=>s.hours==='Full day'?8:s.hours;
 export const shootDays=s=>isPodcast(s)?Math.ceil(s.episodes/s.perDay):1;
 export const availableExtras=s=>(s.project==='Crew hire'||isRetainer(s)?[]:extras.filter(e=>(isPhoto(s)||s.project==='Photo editing & retouching')?['rush','retouch','raw'].includes(e.id):!['retouch'].includes(e.id))).map(e=>isPodcast(s)&&e.id==='rush'?{...e,title:'Priority / next-day edit',description:'N$1,500 per episode · availability confirmed',price:1500}:isPodcast(s)&&e.id==='graphics'?{...e,description:'Beyond included titles & basic animation'}:e.id==='clips'&&s.project==='Conference'?{...e,title:'Vertical cutdowns',description:'N$2,000 per cutdown',price:2000}:e);
+export const pendingExtras=s=>availableExtras(s).filter(e=>s.extras.includes(e.id)&&e.price===null);
 export const quoteOnly=s=>s.project==='Crew hire'||(['Birthday reel','Product video'].includes(s.project)&&s.shootStyle==='Both')||(s.mode==='custom'&&s.service==='Video'&&s.project==='Event coverage'&&s.eventOutput==='full');
 function basePriceLines(s){
  if(!s.project||quoteOnly(s))return [];
@@ -145,7 +146,7 @@ export function reviewItems(s){
  if(s.drone)items.push('Drone availability, permits & pilot');
  if(s.teleprompter)items.push('Teleprompter hire');
  if(s.mode==='custom'&&isEditing(s))items.push('Footage volume, runtime & edit complexity');
- for(const e of availableExtras(s))if(s.extras.includes(e.id)){if(e.price===null)items.push(e.title);else if(e.id==='rush')items.push('Requested delivery deadline and availability')}
+ for(const e of availableExtras(s))if(s.extras.includes(e.id)){if(e.price===null)items.push(e.title,`${e.title}: separate price to be agreed with VisionHaus; excluded from this estimate`);else if(e.id==='rush')items.push('Requested delivery deadline and availability')}
  if(s.project==='Conference'&&s.extras.includes('clips'))items.push('Cutdown duration and edit scope confirmed');
  return [...new Set(items)];
 }
@@ -209,6 +210,6 @@ export function briefText(s){
  if(isPodcast(s))lines.push(`Schedule: ${s.episodes} episodes / up to ${s.perDay} per day / ${shootDays(s)} recording days`,`Episode length: ${s.episodeMinutes} minutes`,`Time per day: ${s.hours} ${typeof s.hours==='number'?'hours':''}`);
  if(s.mode==='package')lines.push('','PACKAGE INCLUSIONS',...packageInclusions(s).map(x=>`- ${x}`));
  if(packageOvertime(s))lines.push(packageOvertime(s));
- lines.push('','REQUESTED SETUP',...equipment(s).map(x=>`- ${x}`),'','EXTRAS',...availableExtras(s).filter(e=>s.extras.includes(e.id)).map(e=>`- ${e.title}`),'','PRICED ITEMS',...priceLines(s).map(l=>`${l.label}: N$ ${l.amount.toLocaleString('en-NA')} ${l.taxInclusive?'tax inclusive':'ex VAT'}`),`Starting estimate: ${quoteOnly(s)?'Quote required':`N$ ${total(s).toLocaleString('en-NA')} · ${taxLabel(s)}`}`,`VAT at 15%: N$ ${priceTotals(s).vat.toLocaleString('en-NA')}; total including VAT: N$ ${priceTotals(s).gross.toLocaleString('en-NA')}`,'','TO QUOTE / CONFIRM',...reviewItems(s).map(x=>`- ${x}`),'',`Notes: ${s.notes||'None'}`,'','This is a quote request. Dates and final cost require confirmation.');
+ lines.push('','REQUESTED SETUP',...equipment(s).map(x=>`- ${x}`),'','EXTRAS',...availableExtras(s).filter(e=>s.extras.includes(e.id)).map(e=>`- ${e.title}${e.price===null?' · price to be agreed separately; excluded from estimate':''}`),'','PRICED ITEMS',...priceLines(s).map(l=>`${l.label}: N$ ${l.amount.toLocaleString('en-NA')} ${l.taxInclusive?'tax inclusive':'ex VAT'}`),`Starting estimate: ${quoteOnly(s)?'Quote required':`N$ ${total(s).toLocaleString('en-NA')} · ${taxLabel(s)}`}`,`VAT at 15%: N$ ${priceTotals(s).vat.toLocaleString('en-NA')}; total including VAT: N$ ${priceTotals(s).gross.toLocaleString('en-NA')}`,'','TO QUOTE / CONFIRM',...reviewItems(s).map(x=>`- ${x}`),'',`Notes: ${s.notes||'None'}`,'','This is a quote request. Dates and final cost require confirmation.');
  return lines.join('\n');
 }

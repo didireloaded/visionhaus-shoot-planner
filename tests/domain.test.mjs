@@ -53,3 +53,11 @@ assert.match(briefText(startPackage('reels','outdoor')),/250.*hour/i);
 assert.match(briefText(startPackage('photo','half')),/ex VAT/i);
 assert.ok(reviewItems({...priority,episodeMinutes:45}).some(x=>x.includes('30 minutes')),'Longer episodes need a separate scope review');
 assert.ok(!reviewItems(priority).includes('Priority / next-day edit'),'A priced add-on must not also be described as unpriced');
+
+// Selecting a quote-only extra records a request, never a zero-price inclusion.
+const pendingPlan={...startPackage('reels','outdoor'),extras:['clips','raw']};
+assert.deepEqual(restore(pendingPlan).extras,['clips','raw']);
+assert.equal(total(pendingPlan),1800);
+assert.match(briefText(pendingPlan),/Source footage.*price to be agreed separately; excluded from estimate/);
+assert.ok(reviewItems(pendingPlan).some(t=>t.includes('excluded from this estimate')));
+assert.equal(total({...pendingPlan,extras:[]}),1800);

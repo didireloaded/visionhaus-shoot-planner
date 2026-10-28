@@ -122,3 +122,8 @@ Authoritative attached VisionHaus_Monthly_Content_Retainers_2026.pdf sets Essent
 VAT calculation now shows net/VAT/gross and applies the existing organisation Sales VAT15% ID (server secret ZOHO_SALES_VAT_ID, source verified in owner's Quote.csv export). Each Zoho create validates the configured ID/percentage using settings READ. Tax-inclusive package prices are converted to net only for mixed-basis estimates, preserving gross package amounts without double VAT. Existing historic quotations are untouched. Raw brief/long references remain the previous implementation; quotation formatting/client details changes were studied separately and are not part of this price update.
 
 Full-event recording is still quote-only: the prior reviewed card confirms12500/24500 EVENT HIGHLIGHTS, not a distinct full-event-recording price. Birthday/product Both setting has no invented combined rate. Influencer tiers/posting fees remain unconfirmed; historical deals are not imported. New rate amounts are starting estimates where scope is variable.
+
+
+## V20 · Clear price-on-review extras
+
+Owner found selecting cutdowns/source footage appeared free. Kept existing selection and pricing rules: conference cutdowns remain2000 each; other cutdowns and source-footage costs stay job-specific. Unselected badges now say Price on review, selected badges Price pending. Selecting displays an immediate explanation in the row, with footage/storage-specific detail, and summaries/review/brief state these requests are excluded from the displayed total and priced after discussion. No modal, invented charge or extra approval step. Checked draft restoration retains the selected extras.
