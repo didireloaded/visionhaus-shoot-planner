@@ -36,6 +36,7 @@ const begin=(key=env.ZOHO_SETUP_KEY,origin=base)=>new Request(base+'/api/zoho/co
 assert.equal((await handleZoho(begin('wrong'),env,mock)).status,403);
 assert.equal((await handleZoho(begin(env.ZOHO_SETUP_KEY,'https://evil.example'),env,mock)).status,403);
 let response=await handleZoho(begin(),env,mock);assert.equal(response.status,303);
+assert.equal((await handleZoho(begin(env.ZOHO_SETUP_KEY,'null'),env,mock)).status,303,'Privacy-preserving owner forms still require the setup key');
 const auth=new URL(response.headers.get('Location')),nonce=auth.searchParams.get('state');
 assert.equal(auth.origin,'https://accounts.zoho.com');assert.match(auth.searchParams.get('scope'),/estimates.CREATE/);assert.doesNotMatch(auth.href,/invoices|bank|payments|.ALL/);
 const callback=()=>new Request(base+'/api/zoho/callback?code=auth-code&state='+nonce,{headers:{Cookie:'__Host-vh-zoho-state='+nonce}});

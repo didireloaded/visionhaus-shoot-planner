@@ -52,7 +52,10 @@ export async function handleZoho(request,env,send=fetch){
  }
  if(url.pathname==='/api/zoho/connect'){
   if(request.method!=='POST')return zohoJson(405,{error:'Use the owner connection form.'});
-  if(request.headers.get('Origin')!==url.origin)return zohoJson(403,{error:'Open the owner connection form.'});
+  // Privacy-preserving form navigations can send Origin: null. The high-entropy
+  // owner key is the authorization boundary; no existing cookie grants setup.
+  const origin=request.headers.get('Origin');
+  if(origin&&origin!=='null'&&origin!==url.origin)return zohoJson(403,{error:'Open the owner connection form.'});
   if(Number(request.headers.get('Content-Length')||0)>512)return zohoJson(413,{error:'Invalid setup key.'});
   const body=await request.text();if(body.length>512)return zohoJson(413,{error:'Invalid setup key.'});
   if(!env.DB||!env.ZOHO_SETUP_KEY||!await zohoEqual(new URLSearchParams(body).get('key'),env.ZOHO_SETUP_KEY))return zohoJson(403,{error:'Owner access required.'});
