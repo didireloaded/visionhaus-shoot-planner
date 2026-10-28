@@ -42,3 +42,14 @@ for(const v of ['one','two','three']){const podcast=change(startPackage('podcast
 assert.match(briefText(change(startPackage('podcast','three'),'episodes',3)),/3 fully edited episodes/);
 
 assert.equal(startPackage('music','outdoor').shootStyle,'Outdoor');assert.equal(startPackage('reels','both').shootStyle,'Both');assert.match(briefText(startPackage('music','both')),/Setting: Both/);
+
+// Source: owner's Rate card creation assistance chat, July–October 2026.
+const priority=change(change(startPackage('podcast','two'),'episodes',3),'extras',['rush']);
+assert.equal(total(priority),3*(8500+1500),'Priority editing is priced per episode');
+assert.equal(total({...priority,extras:[]}),3*8500,'Removing priority restores the base price');
+assert.match(briefText(startPackage('reels','outdoor')),/tax inclusive/i);
+assert.match(briefText(startPackage('music','outdoor')),/550.*hour/i);
+assert.match(briefText(startPackage('reels','outdoor')),/250.*hour/i);
+assert.match(briefText(startPackage('photo','half')),/ex VAT/i);
+assert.ok(reviewItems({...priority,episodeMinutes:45}).some(x=>x.includes('30 minutes')),'Longer episodes need a separate scope review');
+assert.ok(!reviewItems(priority).includes('Priority / next-day edit'),'A priced add-on must not also be described as unpriced');

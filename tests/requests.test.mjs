@@ -35,3 +35,5 @@ r=await handleSubmission(request({...production,service:'__proto__'}),env);asser
 r=await handleSubmission(request({...rental,start:'2099-02-30',end:'2099-03-03'},'rental'),env);assert.equal(r.status,400);
 r=await handleSubmission(request({...production,name:{name:'not a string'}}),env);assert.equal(r.status,400);
 r=await handleSubmission(request({...production,to:'attacker@example.com',subject:'Override'}),env);const controlled=await r.json();assert.equal(controlled.form.to,undefined);assert.match(controlled.form.subject,/Production request/);
+
+r=await handleSubmission(request({...production,episodes:3,extras:['rush'],total:1}),env);const podcastPriority=await r.json();assert.match(podcastPriority.form.message,/30,000/);assert.match(podcastPriority.form.message,/Tax inclusive/);assert.match(podcastPriority.form.message,/Priority \/ next-day edit/);

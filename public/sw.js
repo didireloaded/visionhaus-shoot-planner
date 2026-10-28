@@ -1,4 +1,4 @@
-const CACHE='vh-review-v12';
+const CACHE='vh-pricing-v13';
 const SHELL=['/','/style.css','/app.js','/submission.mjs','/domain.mjs','/dates.mjs','/rentals.mjs','/icon.svg','/icon-192.png','/icon-512.png','/manifest.webmanifest','/vendor/lucide.min.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));

@@ -4,15 +4,15 @@ import {validDate,windhoekToday} from './dates.mjs';
 export const projects={Video:['Social reel','Music video','Event coverage','Podcast','Interview','Testimonial','Conference','Commercial','Corporate video','Wedding film','Property video','Product video','Tourism & hospitality film','Documentary','Birthday reel','Club-night video','Monthly content','Livestreaming','Brand commercial','Crew hire'],Photo:['Portraits','Headshots','Event photography','Product photography','Nightlife photography','Property photography','Fashion photography'],'Photo + video':['Event coverage','Brand content','Conference'],Editing:['Social reel edit','Podcast edit','Music video edit','Event edit','Commercial edit','Colour grading','Sound cleanup & mixing','Photo editing & retouching']};
 export const locations=['Windhoek','Swakopmund','Walvis Bay','The north','Other location / remote'];
 export const packages=[
- {id:'reels',title:'Reels',project:'Social reel',service:'Video',image:'camera',icon:'smartphone',label:'Short-form content',price:1800,variants:[{id:'outdoor',label:'Outdoor',price:1800,hours:3,features:['3-hour outdoor shoot','One finished reel','3 revision rounds']},{id:'indoor',label:'Indoor',price:2500,hours:6,features:['6-hour indoor shoot','One finished reel','4 revision rounds']},{id:'both',label:'Both',price:3500,hours:7,features:['Indoor & outdoor','7-hour shoot','One reel · 5 revisions']}]},
+ {id:'reels',taxInclusive:true,title:'Reels',project:'Social reel',service:'Video',image:'camera',icon:'smartphone',label:'Short-form content',price:1800,variants:[{id:'outdoor',label:'Outdoor',price:1800,hours:3,features:['3-hour outdoor shoot','One finished reel','3 revision rounds']},{id:'indoor',label:'Indoor',price:2500,hours:6,features:['6-hour indoor shoot','One finished reel','4 revision rounds']},{id:'both',label:'Both',price:3500,hours:7,features:['Indoor & outdoor','7-hour shoot','One reel · 5 revisions']}]},
  {id:'photo',title:'Photography',project:'Portraits',service:'Photo',image:'portrait',icon:'camera',label:'Portraits & moments',price:6500,variants:[{id:'half',label:'Half day',price:6500,hours:4,features:['4-hour photo session','Up to 80 edited images','Online delivery gallery']},{id:'full',label:'Full day',price:11500,hours:8,features:['8-hour photo session','Up to 200 edited images','90-day RAW backup']}]},
- {id:'music',title:'Music videos',project:'Music video',service:'Video',image:'events',icon:'music-2',label:'For your next release',price:6800,variants:[{id:'outdoor',label:'Outdoor',price:6800,hours:3,features:['3-hour shoot · 2 locations','Finished music video','2 revision rounds']},{id:'indoor',label:'Indoor',price:9500,hours:6,features:['6-hour indoor shoot','Finished music video','3 revision rounds']},{id:'both',label:'Both',price:15000,hours:8,features:['Full-day indoor & outdoor','Finished music video','6 revision rounds · from N$15,000']}]},
- {id:'podcast',title:'Podcasts',project:'Podcast',service:'Video',image:'podcast',icon:'mic',label:'Record your conversation',price:6000,variants:[{id:'one',label:'1 camera',price:6000,cameras:1,features:['One-camera recording','Clear audio & lighting','One fully edited episode']},{id:'two',label:'2 cameras',price:8500,cameras:2,features:['Two-camera recording','Clear audio & lighting','One fully edited episode']},{id:'three',label:'3 cameras',price:11000,cameras:3,features:['Three-camera recording','Clear audio & lighting','One fully edited episode']}]},
+ {id:'music',taxInclusive:true,title:'Music videos',project:'Music video',service:'Video',image:'events',icon:'music-2',label:'For your next release',price:6800,variants:[{id:'outdoor',label:'Outdoor',price:6800,hours:3,features:['3-hour shoot · 2 locations','Finished music video','2 revision rounds']},{id:'indoor',label:'Indoor',price:9500,hours:6,features:['6-hour indoor shoot','Finished music video','3 revision rounds']},{id:'both',label:'Both',price:15000,hours:8,features:['Full-day indoor & outdoor','Finished music video','6 revision rounds · from N$15,000']}]},
+ {id:'podcast',taxInclusive:true,title:'Podcasts',project:'Podcast',service:'Video',image:'podcast',icon:'mic',label:'Record your conversation',price:6000,variants:[{id:'one',label:'1 camera',price:6000,cameras:1,features:['One-camera recording','Clear audio & lighting','One fully edited episode']},{id:'two',label:'2 cameras',price:8500,cameras:2,features:['Two-camera recording','Clear audio & lighting','One fully edited episode']},{id:'three',label:'3 cameras',price:11000,cameras:3,features:['Three-camera recording','Clear audio & lighting','One fully edited episode']}]},
  {id:'editing',title:'Editing',project:'Social reel edit',service:'Editing',image:'camera',icon:'scissors',label:'Bring your footage together',price:1900,variants:[{id:'two',label:'2 hours',price:1900,hours:2,features:['2-hour editing allowance','Your supplied footage','Final scope reviewed first']},{id:'day',label:'Day rate',price:5500,hours:8,features:['8-hour editing allowance','Your supplied footage','Final scope reviewed first']}]},
  {id:'event',title:'Event highlights',project:'Event coverage',service:'Video',image:'events',icon:'clapperboard',label:'The moments that matter',price:12500,variants:[{id:'standard',label:'Standard',price:12500,hours:8,features:['Solo videographer','3-minute highlight film','Vertical cut · 7-day delivery']},{id:'premium',label:'Premium',price:24500,hours:8,cameras:2,features:['Two videographers','Hero edit & same-day teaser','3 cutdowns · drone subject to permits']}]},
 ];
 export const extras=[{id:'clips',title:'3 vertical cutdowns',description:'Short edits for social',price:null,icon:'smartphone'},{id:'captions',title:'Captions',description:'Subtitles on your edits',price:null,icon:'captions'},{id:'rush',title:'Fast delivery',description:'Confirm a turnaround',price:null,icon:'timer'},{id:'raw',title:'Source footage',description:'Transfer & drive quoted',price:null,icon:'hard-drive'},{id:'retouch',title:'Extra retouching',description:'For selected images',price:null,icon:'sparkles'},{id:'graphics',title:'Motion graphics',description:'Titles & animation',price:null,icon:'layers'}];
-export const initial=()=>({mode:'custom',packageId:'',variantId:'',service:'',project:'',section:'project',crewRole:'Camera operator',crewCount:1,subjects:1,people:2,episodes:1,perDay:1,episodeMinutes:45,hours:4,cameras:2,framing:'Conversation',eventOutput:'highlight',editLength:'60 seconds',location:'Windhoek',venue:'',date:'',shootStyle:'Indoor',sound:true,lighting:true,liveEdits:false,gimbal:false,drone:false,teleprompter:false,extras:[],name:'',email:'',phone:'',notes:'',complete:false});
+export const initial=()=>({mode:'custom',packageId:'',variantId:'',service:'',project:'',section:'project',crewRole:'Camera operator',crewCount:1,subjects:1,people:2,episodes:1,perDay:1,episodeMinutes:30,hours:4,cameras:2,framing:'Conversation',eventOutput:'highlight',editLength:'60 seconds',location:'Windhoek',venue:'',date:'',shootStyle:'Indoor',sound:true,lighting:true,liveEdits:false,gimbal:false,drone:false,teleprompter:false,extras:[],name:'',email:'',phone:'',notes:'',complete:false});
 export const isPodcast=s=>s.project==='Podcast';
 export const isEditing=s=>s.service==='Editing';
 export const isPhoto=s=>s.service==='Photo';
@@ -22,9 +22,9 @@ export const variantFor=s=>packageFor(s)?.variants.find(v=>v.id===s.variantId);
 export const packageInclusions=s=>(variantFor(s)?.features||[]).map(text=>isPodcast(s)&&text==='One fully edited episode'?`${s.episodes} fully edited episode${s.episodes===1?'':'s'}`:text);
 export const hoursValue=s=>s.hours==='Full day'?8:s.hours;
 export const shootDays=s=>isPodcast(s)?Math.ceil(s.episodes/s.perDay):1;
-export const availableExtras=s=>s.project==='Crew hire'?[]:extras.filter(e=>isPhoto(s)?['rush','retouch','raw'].includes(e.id):!['retouch'].includes(e.id));
+export const availableExtras=s=>(s.project==='Crew hire'?[]:extras.filter(e=>isPhoto(s)?['rush','retouch','raw'].includes(e.id):!['retouch'].includes(e.id))).map(e=>isPodcast(s)&&e.id==='rush'?{...e,title:'Priority / next-day edit',description:'N$1,500 per episode · availability confirmed',price:1500}:isPodcast(s)&&e.id==='graphics'?{...e,description:'Beyond included titles & basic animation'}:e);
 export const quoteOnly=s=>['Birthday reel','Monthly content','Livestreaming','Colour grading','Sound cleanup & mixing','Crew hire','Product video','Tourism & hospitality film','Documentary','Property photography','Fashion photography','Photo editing & retouching'].includes(s.project);
-export function priceLines(s){
+function basePriceLines(s){
  if(!s.project||quoteOnly(s))return [];
  const variant=variantFor(s);
  if(s.mode==='package'&&variant)return [{label:`${packageFor(s).title} · ${variant.label}${isPodcast(s)?` × ${s.episodes} episode${s.episodes===1?'':'s'}`:''}`,amount:variant.price*(isPodcast(s)?s.episodes:1)}];
@@ -42,6 +42,9 @@ export function priceLines(s){
  const lines=[{label:video?(hrs>=8?'Lead videographer · day · camera kit included':`Lead videographer · ${Math.max(3,hrs)} hrs · camera kit included`):(hrs>=8?'Photography · 8-hour package':hrs===4?'Photography · half-day package':`Photography · ${Math.max(2,hrs)} hrs`),amount:video?(hrs>=8?11500:Math.max(3,hrs)*3500):(hrs>=8?11500:hrs===4?6500:Math.max(2,hrs)*2500)}];
  return lines;
 }
+export function priceLines(s){const lines=basePriceLines(s);if(isPodcast(s)&&s.extras.includes('rush'))lines.push({label:`Priority / next-day edit × ${s.episodes} episode${s.episodes===1?'':'s'}`,amount:1500*s.episodes});return lines;}
+export const taxLabel=s=>isPodcast(s)||(s.mode==='package'&&packageFor(s)?.taxInclusive)?'Tax inclusive':'Ex VAT';
+export const packageOvertime=s=>s.mode==='package'&&s.packageId==='reels'?'Additional filming beyond package time: N$250 per hour.':s.mode==='package'&&s.packageId==='music'?'Additional filming beyond package time: N$550 per hour.':'';
 export const total=s=>priceLines(s).reduce((sum,l)=>sum+l.amount,0);
 export function equipment(s){
  if(s.project==='Crew hire')return [`${s.crewCount} ${s.crewRole}${s.crewCount>1?'s':''}`];
@@ -76,6 +79,8 @@ export function reviewItems(s){
  if(quoteOnly(s))items.push('Service price & full scope');
  if(s.mode==='custom'&&!isPodcast(s)&&!isEditing(s))items.push('Editing, supporting crew & equipment priced in final quote');
  if(!isEditing(s)&&s.cameras>1)items.push('Additional cameras & crew availability');
+ if(isPodcast(s)&&s.episodeMinutes>30)items.push('Episodes over 30 minutes · extended runtime quoted separately');
+ if(isPodcast(s)&&s.extras.includes('rush'))items.push('Priority delivery availability');
  if(isPodcast(s)&&s.people>2)items.push('Additional audio channels');
  if(isPodcast(s)&&s.perDay*s.episodeMinutes>hoursValue(s)*60-60)items.push('Recording schedule needs more time for setup & breaks');
  if(s.location!=='Windhoek'&&!isEditing(s))items.push('Travel & accommodation');
@@ -85,7 +90,7 @@ export function reviewItems(s){
  if(s.drone)items.push('Drone availability, permits & pilot');
  if(s.teleprompter)items.push('Teleprompter hire');
  if(s.mode==='custom'&&isEditing(s))items.push('Footage volume, runtime & edit complexity');
- for(const e of availableExtras(s))if(s.extras.includes(e.id))items.push(e.title);
+ for(const e of availableExtras(s))if(s.extras.includes(e.id)&&!(isPodcast(s)&&e.id==='rush'))items.push(e.title);
  return [...new Set(items)];
 }
 export function change(s,key,value){
@@ -141,6 +146,7 @@ export function briefText(s){
  if(!isPhoto(s)&&!isEvent(s)&&!isPodcast(s)&&!isEditing(s)&&s.project!=='Crew hire'){lines.push(`Setting: ${s.shootStyle}`);if(s.mode==='custom')lines.push(`Finished runtime: ${s.editLength}`);}
  if(isPodcast(s))lines.push(`Schedule: ${s.episodes} episodes / up to ${s.perDay} per day / ${shootDays(s)} recording days`,`Episode length: ${s.episodeMinutes} minutes`,`Time per day: ${s.hours} ${typeof s.hours==='number'?'hours':''}`);
  if(s.mode==='package')lines.push('','PACKAGE INCLUSIONS',...packageInclusions(s).map(x=>`- ${x}`));
- lines.push('','REQUESTED SETUP',...equipment(s).map(x=>`- ${x}`),'','EXTRAS',...availableExtras(s).filter(e=>s.extras.includes(e.id)).map(e=>`- ${e.title}`),'','PRICED ITEMS',...priceLines(s).map(l=>`${l.label}: N$ ${l.amount.toLocaleString('en-NA')}`),`Starting estimate: ${quoteOnly(s)?'Quote required':`N$ ${total(s).toLocaleString('en-NA')} ex VAT`}`,'','TO QUOTE / CONFIRM',...reviewItems(s).map(x=>`- ${x}`),'',`Notes: ${s.notes||'None'}`,'','This is a quote request. Dates and final cost require confirmation.');
+ if(packageOvertime(s))lines.push(packageOvertime(s));
+ lines.push('','REQUESTED SETUP',...equipment(s).map(x=>`- ${x}`),'','EXTRAS',...availableExtras(s).filter(e=>s.extras.includes(e.id)).map(e=>`- ${e.title}`),'','PRICED ITEMS',...priceLines(s).map(l=>`${l.label}: N$ ${l.amount.toLocaleString('en-NA')}`),`Starting estimate: ${quoteOnly(s)?'Quote required':`N$ ${total(s).toLocaleString('en-NA')} · ${taxLabel(s)}`}`,'','TO QUOTE / CONFIRM',...reviewItems(s).map(x=>`- ${x}`),'',`Notes: ${s.notes||'None'}`,'','This is a quote request. Dates and final cost require confirmation.');
  return lines.join('\n');
 }
