@@ -40,6 +40,37 @@ function heading(title,sub=''){return `<div class="page-heading"><h1>${title}</h
 function button(label,attr='',cls='primary'){return `<button class="${cls}" ${attr}>${label}${icon('arrow-right')}</button>`}
 function header(){return `<div class="topbar"><button class="brand-avatar" data-view="studio" aria-label="About VisionHaus"><img src="/visionhaus-logo.png" alt="" width="1736" height="704"></button><button class="greeting-brand" data-view="home"><strong>Hi, creator</strong><small>Let's make your next production</small></button><button class="icon-button" id="find-package" aria-label="Find a package">${icon('search')}</button><button class="icon-button" data-view="plan" aria-label="Build a custom production">${icon('sliders-horizontal')}</button></div>`}
 function tabBar(){return [['home','house','Home'],['plan','sliders-horizontal','My Plan'],['saved','heart','Saved'],['studio','circle-user-round','Studio']].map(([v,i,t])=>`<button data-view="${v}" aria-label="${t}" ${view===v||v==='home'&&['detail','brief'].includes(view)||v==='plan'&&view==='hire'?'aria-current="page"':''}>${icon(i)}<span>${t}</span></button>`).join('')}
+let activeNavTab='';
+function updateTabBar(){
+ const nav=$('#tab-bar');
+ const first=!nav.querySelector('.nav-highlight');
+ if(first){nav.innerHTML='<span class="nav-highlight" aria-hidden="true"></span>'+tabBar();window.lucide.createIcons({root:nav,attrs:{'stroke-width':1.7}})}
+ const buttons=[...nav.querySelectorAll('button[data-view]')];
+ buttons.forEach(b=>b.disabled=submitting);
+ const selected=['detail','brief'].includes(view)?'home':view==='hire'?'plan':view;
+ if(!first&&selected===activeNavTab)return;
+ const pill=nav.querySelector('.nav-highlight'),navRect=nav.getBoundingClientRect(),oldPill=pill.getBoundingClientRect();
+ const previous=buttons.map(b=>b.getBoundingClientRect());
+ buttons.forEach(b=>{b.getAnimations().forEach(a=>a.cancel());if(b.dataset.view===selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
+ const target=buttons.find(b=>b.dataset.view===selected)||buttons[0];
+ const x=target.offsetLeft,width=target.offsetWidth;
+ pill.getAnimations().forEach(a=>a.cancel());
+ Object.assign(pill.style,{top:target.offsetTop+'px',height:target.offsetHeight+'px',width:width+'px',transform:`translateX(${x}px)`});
+ if(!first&&!reducedMotion.matches){
+  // Begin from the visible position, so rapid tab presses do not queue slides.
+  motion(pill,[{transform:`translateX(${oldPill.left-navRect.left}px)`,width:oldPill.width+'px'},{transform:`translateX(${x}px)`,width:width+'px'}],300);
+  buttons.forEach((b,i)=>{const next=b.getBoundingClientRect();motion(b,[{transform:`translateX(${previous[i].left-next.left}px)`},{transform:'translateX(0)'}],240)});
+ }
+ activeNavTab=selected;
+}
+// Reposition the same highlight after rotation/window resizing without animating.
+const navResize=new ResizeObserver(()=>{
+ const nav=$('#tab-bar'),target=nav.querySelector('button[aria-current]'),pill=nav.querySelector('.nav-highlight');
+ if(!target||!pill)return;
+ pill.getAnimations().forEach(a=>a.cancel());
+ Object.assign(pill.style,{top:target.offsetTop+'px',height:target.offsetHeight+'px',width:target.offsetWidth+'px',transform:`translateX(${target.offsetLeft}px)`});
+});
+navResize.observe($('#tab-bar'));
 function packageCard(p){return `<article class="package-card icon-package"><button class="package-open" data-package="${p.id}"><span class="package-service-icon">${icon(p.icon)}</span><span class="package-text"><strong>${p.title}</strong><small>${p.label}</small></span><span class="package-price"><small>From</small><strong>${money(p.price)}</strong></span>${icon('chevron-right')}</button><button class="save-button ${saved.includes(p.id)?'is-saved':''}" data-save="${p.id}" aria-label="${saved.includes(p.id)?'Unsave':'Save'} ${p.title}" aria-pressed="${saved.includes(p.id)}">${icon('heart')}</button></article>`}
 function home(){if(homeMode==='rentals')return rentalCatalogue();const list=packages.filter(p=>filter==='All'||p.service===filter);return `<section class="home-page">${modeSwitch()}<div class="discovery-intro"><div><span class="eyebrow">VISIONHAUS MEDIA</span><h1>Find your<br>next <mark>production.</mark></h1><p>Film, photos and everything in between.</p></div><span class="intro-symbol" aria-hidden="true">${icon('aperture')}</span></div><nav class="filter-chips service-pills" aria-label="Package categories">${[['All','All packages','grid-2x2'],['Video','Video','video'],['Photo','Photo','camera'],['Editing','Editing','scissors']].map(([v,l,i])=>`<button data-filter="${v}" class="${filter===v?'active':''}" aria-pressed="${filter===v}">${icon(i)}${l}</button>`).join('')}</nav>${briefEntry()}<div class="home-section-label"><h2>Popular packages</h2><span>${list.length} packages</span></div><div class="package-grid">${list.map(packageCard).join('')}</div><p class="price-footnote">Reels, music videos & podcasts: tax inclusive. Other rates: ex VAT.</p><button class="custom-link" data-custom>${icon('sliders-horizontal')}<span>Need a different setup?<strong>Build your plan</strong></span>${icon('arrow-right')}</button></section>`}
 function detail(){const p=packages.find(p=>p.id===detailId),v=p.variants.find(v=>v.id===variantId)||p.variants[0];return `<section class="detail-page icon-detail"><div class="detail-topline"><button class="icon-button" data-view="home" aria-label="Back to packages">${icon('arrow-left')}</button><span>VisionHaus package</span><button class="icon-button" data-save="${p.id}" aria-label="${saved.includes(p.id)?'Unsave':'Save'} ${p.title}" aria-pressed="${saved.includes(p.id)}">${icon('heart')}</button></div><div class="detail-content"><span class="detail-service-icon">${icon(p.icon)}</span><div class="detail-heading"><div><h1>${p.title}</h1><p>${p.label}</p></div></div><div class="variant-pills" aria-label="Package options">${p.variants.map(o=>`<button data-variant="${o.id}" class="${v.id===o.id?'selected':''}" aria-pressed="${v.id===o.id}">${o.label}</button>`).join('')}</div><div class="package-detail-price">${money(v.price)}<small>${p.id==='podcast'?'per episode':p.id==='editing'?'editing allowance':'starting price'} · ${taxLabel(startPackage(p.id,v.id))}</small></div><ul class="included-list">${v.features.map(f=>`<li>${icon('check')}${f}</li>`).join('')}</ul>${p.id==='podcast'?'<p class="field-hint">Standard episode: up to 30 minutes. Longer episodes are quoted separately.</p>':''}${packageOvertime(startPackage(p.id,v.id))?`<p class="field-hint">${packageOvertime(startPackage(p.id,v.id))}</p>`:''}<div class="detail-assurance">${icon('calendar-check-2')}Choose your date next. We’ll confirm availability.</div><button class="text-button" data-custom-service="${p.service}" data-project="${p.project}">Need a different setup? Build a custom plan ${icon('arrow-right')}</button></div></section>`}
@@ -77,7 +108,7 @@ function render(){
  const scene=view==='home'?`${view}:${homeMode}:${filter}:${rentalCategory}`:view==='detail'?`${view}:${detailId}`:view==='hire'?`${view}:${rental.step}:${rentalPrepared}`:view==='plan'?`${view}:${state.project}:${state.section}:${state.complete}`:view;
  mountRegion('#app-header',header());
  mountRegion('#app',({home,detail,plan,hire:rentalCheckout,brief:briefScreen,saved:savedPage,studio})[view](),true);
- mountRegion('#control-surface',controls());mountRegion('#tab-bar',tabBar());
+ mountRegion('#control-surface',controls());updateTabBar();
  document.body.dataset.view=view;bind();
  if(scene!==lastScene){
   const target=view==='plan'?$('#task')||$('#app'):view==='home'&&lastScene.startsWith('home:')?$('.package-grid')||$('.rental-list')||$('#app'):$('#app');

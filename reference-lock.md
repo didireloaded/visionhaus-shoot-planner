@@ -134,3 +134,8 @@ Owner found selecting cutdowns/source footage appeared free. Kept existing selec
 Locked target: existing compact light VisionHaus interface, per owner request to optimise and add subtle animation. Refero bundled motion.md anchors: functional feedback/continuity, 120–220ms, 2–6px movement, opacity/transform only, reduced-motion respected. Preserve all layouts, approved prices, quote behaviour and content.
 
 Native Web Animations handle step/filter/rental transitions and changed totals; the selection check gets a short scale settle. CSS adds restrained hover, pending-explanation entry and completion feedback. No looping hero, animation library, artificial loading delay or flow gate. Reduced-motion users receive no added motion, and existing CSS overrides remain. Cache static header/nav/control markup and initialise Lucide only inside changed regions; busy-state transitions still remount controls to restore enabled state. Avoid unchanged localStorage draft writes, retaining real-change timestamps and storage error handling.
+
+
+## V22 · Sliding glass navigation highlight
+
+Owner requested the active Home/My Plan/Saved/Studio pill to slide between tabs with a liquid-glass feel. Preserve the compact black floating bar, lime selection and expanding selected label. Keep a single highlight and stable navigation buttons; animate its visible position and width over300ms, settle icon positions over240ms, add restrained translucent sheen/inner highlight. Rapid presses cancel rather than queue previous animation, resize remeasures alignment, first load and reduced motion update immediately. Existing button semantics/aria-current, visible keyboard focus and busy disabling are retained. No glass redesign elsewhere, libraries or price/booking changes.
