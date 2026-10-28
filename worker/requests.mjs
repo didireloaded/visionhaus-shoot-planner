@@ -1,6 +1,7 @@
 import {windhoekToday} from '../public/dates.mjs';
 import {restore,briefText,productionErrors} from '../public/domain.mjs';
 import {restoreRental,rentalErrors,rentalBrief} from '../public/rentals.mjs';
+import {zohoConnection,createZohoQuote} from './zoho.mjs';
 
 const emailPattern=/^[^\s<>@\r\n]+@[^\s<>@\r\n]+\.[^\s<>@\r\n]+$/;
 const safeLine=value=>String(value||'').replace(/[\r\n\u0000-\u001f]/g,' ').trim();
@@ -55,8 +56,12 @@ export async function handleSubmission(request,env){
  }
  // Prepare validated fields. Web3Forms free-plan sends must originate in the browser.
  // The public form access key routes to its configured inbox.
- if(!env.WEB3FORM_ACCESS_KEY)return json(503,{error:'Online submission is temporarily unavailable. Your draft is saved on this device. Please try again later.'});
  if(!allowRequest(request.headers.get('CF-Connecting-IP')||'anonymous'))return json(429,{error:'Too many attempts. Please wait a few minutes before trying again.'});
- const reference=`VH-${raw.requestId.slice(3,15).toUpperCase()}`;
- return json(200,{reference,form:{access_key:env.WEB3FORM_ACCESS_KEY,name,email,phone,subject:`${raw.type==='rental'?'Rental':'Production'} request · ${reference} · ${name}`,message:`New client request\nReference: ${reference}\nReply to this email to contact ${name}.\n\n${brief}`,botcheck:false}});
+ let reference=`VH-${raw.requestId.slice(3,15).toUpperCase()}`,accepted=false;
+ try{
+  const connection=await zohoConnection(env);
+  if(connection){const quote=await createZohoQuote(request,env,connection,raw.type,state,brief);reference=quote.reference;accepted=quote.accepted}
+ }catch{return json(503,{error:'We could not confirm your quotation request yet. Your draft is saved. Please wait two minutes and try Submit again.'})}
+ if(!accepted&&!env.WEB3FORM_ACCESS_KEY)return json(503,{error:'Online submission is temporarily unavailable. Your draft is saved on this device. Please try again later.'});
+ return json(200,{reference,...(accepted?{accepted:true}:{}),...(env.WEB3FORM_ACCESS_KEY?{form:{access_key:env.WEB3FORM_ACCESS_KEY,name,email,phone,subject:`${raw.type==='rental'?'Rental':'Production'} request · ${reference} · ${name}`,message:`New client request\nReference: ${reference}\n${accepted?'Draft quotation is ready in Zoho Books. Review scope, tax and pricing before sending.\n':''}Reply to this email to contact ${name}.\n\n${brief}`,botcheck:false}}:{})});
 }
