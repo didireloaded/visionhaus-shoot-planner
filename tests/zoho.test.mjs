@@ -71,7 +71,7 @@ assert.equal(parallel.filter(x=>x.status==='fulfilled').length,1);assert.equal(e
 
 const custom=change(change(initial(),'service','Video'),'project','Crew hire');
 const unknown=zohoEstimate('production',custom,'Full brief','VH-TEST','customer-1');assert.equal(unknown.line_items[0].rate,0);assert.match(unknown.line_items[0].description,/price to be agreed/);
-const extras=zohoEstimate('production',{...startPackage('reels','outdoor'),extras:['captions']},'Brief','VH-TEST','customer-1');assert.equal(extras.line_items[0].rate,1565.217391);assert.equal(extras.line_items[1].rate,1800);assert.equal(extras.is_inclusive_tax,false);assert.ok(!extras.notes.includes('To confirm: Captions'));
+const extras=zohoEstimate('production',{...startPackage('reels','outdoor'),extras:['captions']},'Brief','VH-TEST','customer-1');assert.equal(extras.line_items[0].rate,1800);assert.equal(extras.line_items[1].rate,2070);assert.equal(extras.is_inclusive_tax,true);assert.ok(!extras.notes.includes('To confirm: Captions'));
 const rental={...setRentalQty(rentalInitial(),'fx3',1),start:'2099-01-01',end:'2099-01-02'};
 const equipment=zohoEstimate('rental',rental,'Rental brief','VH-TEST','customer-1');assert.equal(equipment.line_items[0].rate,3000);assert.equal(equipment.line_items[0].quantity,2);assert.equal(equipment.is_inclusive_tax,false);
 

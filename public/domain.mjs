@@ -80,7 +80,7 @@ export function priceLines(s){
  for(const e of availableExtras(s))if(s.extras.includes(e.id)&&e.price!==null){
   if(s.mode==='package'&&s.packageId==='event'&&s.variantId==='premium'&&e.id==='clips')continue;
   const qty=e.id==='clips'?s.clipCount:e.id==='retouch'?s.retouchCount:isPodcast(s)&&e.id==='rush'?s.episodes:1;
-  lines.push({label:`${e.title} × ${qty}${e.id==='retouch'?' images':isPodcast(s)&&e.id==='rush'?' episodes':''}`,amount:e.price*qty,quantity:qty,taxInclusive:isPodcast(s)&&e.id==='rush'});
+  lines.push({label:`${e.title} × ${qty}${e.id==='retouch'?' images':isPodcast(s)&&e.id==='rush'?' episodes':''}`,amount:e.price*qty,quantity:qty,description:e.description,taxInclusive:isPodcast(s)&&e.id==='rush'});
  }
  const includedCameras=isPodcast(s)?s.cameras:s.mode==='package'?(variantFor(s)?.cameras||1):isRetainer(s)?s.cameras:1;
  if(!isPhoto(s)&&!isEditing(s)&&!isRetainer(s)&&s.project!=='Crew hire'&&s.cameras>includedCameras)lines.push({label:`Additional camera, operator & tripod × ${s.cameras-includedCameras} · per shoot`,amount:1800*(s.cameras-includedCameras),taxInclusive:false});
