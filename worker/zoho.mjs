@@ -1,5 +1,5 @@
-import {priceLines,reviewItems,taxLabel,quoteOnly} from '../public/domain.mjs';
-import {rentalLines} from '../public/rentals.mjs';
+import {priceLines,quoteOnly,packageInclusions,narrative,packageFor,variantFor,pendingExtras,equipment,isRetainer,retainerFor} from '../public/domain.mjs';
+import {rentalLines,rentalItems} from '../public/rentals.mjs';
 import {windhoekToday} from '../public/dates.mjs';
 
 const zohoScopes='ZohoBooks.contacts.READ,ZohoBooks.contacts.CREATE,ZohoBooks.estimates.READ,ZohoBooks.estimates.CREATE,ZohoBooks.settings.READ';
@@ -88,31 +88,46 @@ export async function handleZoho(request,env,send=fetch){
  return zohoJson(404,{error:'Not found.'});
 }
 
+export function zohoCustomer(state,currencyId){
+ const name=state.name.trim(),company=(state.company||'').trim();
+ const parts=name.split(/\s+/),first=parts.shift(),last=parts.join(' ');
+ return {contact_name:company||name,company_name:company,contact_type:'customer',customer_sub_type:company?'business':'individual',currency_id:currencyId,
+  billing_address:{attention:name,address:state.billingAddress||'',phone:state.phone||''},
+  contact_persons:[{first_name:first,last_name:last,email:state.email,phone:state.phone||'',is_primary_contact:true}]};
+}
 export function zohoEstimate(type,state,brief,reference,customerId,taxId){
  const sourceLines=type==='production'?priceLines(state):[];
  const inclusive=type==='production'&&sourceLines.length>0&&sourceLines.every(l=>l.taxInclusive);
- const lines=type==='rental'?rentalLines(state).map(l=>({name:l.title,quantity:l.qty*l.units,rate:l.rate})):sourceLines.map(l=>({name:l.label,quantity:1,rate:!inclusive&&l.taxInclusive?Math.round(l.amount/1.15*1000000)/1000000:l.amount}));
- if(type==='production'&&quoteOnly(state))lines.unshift({name:`${state.project} — PRICE TO BE CONFIRMED`,description:'VisionHaus must confirm the service price before sending.',quantity:1,rate:0});
+ const scope=type==='production'?[narrative(state),state.mode==='package'?`${packageFor(state)?.title} / ${variantFor(state)?.label}`:'',...packageInclusions(state),...(isRetainer(state)?[`${retainerFor(state).title} monthly retainer · up to ${retainerFor(state).hours} production hours per month. Minimum 3 months; monthly payment in advance.`,`Monthly deliverables agreed within capacity; video and photo maxima are not cumulative entitlements. Events use monthly production hours.`,`Up to 20% of unused hours rolls over for one month. Organic social and website use. Travel within 25 km of central Windhoek included; third-party costs and other usage rights quoted separately.`]:[]),`Requested setup: ${equipment(state).join('; ')}. Subject to agreed scope and availability.`,`Location: ${state.location}${state.venue?' / '+state.venue:''}`,`Preferred date: ${state.date||'Flexible'}`].filter(Boolean).join('\n'):'';
+ const lines=type==='rental'?rentalLines(state).map(l=>({name:l.title,description:`${rentalItems.find(i=>i.id===l.id)?.description||''}\n${l.qty} item(s) × ${l.units} ${state.period==='week'?'week(s)':state.period==='half'?'half-day period(s)':'day(s)'}\nHire: ${state.start} to ${state.end} · ${state.fulfilment}`,quantity:l.qty*l.units,rate:l.rate})):sourceLines.map((l,i)=>({name:l.label,description:i===0&&!quoteOnly(state)?scope:l.label,quantity:l.quantity||1,rate:(!inclusive&&l.taxInclusive?Math.round(l.amount/1.15*1000000)/1000000:l.amount)/(l.quantity||1)}));
+ if(type==='production'&&quoteOnly(state))lines.unshift({name:state.project,description:scope+'\nService scope and price to be agreed.',quantity:1,rate:0});
  for(const line of lines)if(taxId)line.tax_id=taxId;
- const review=type==='rental'?['Delivery, deposit, insurance and availability require review.']:reviewItems(state);
- const tax=type==='rental'?'Ex VAT':taxLabel(state);
- const notes=`DRAFT — VISIONHAUS REVIEW REQUIRED BEFORE SENDING\n${tax}. Tax treatment and full scope must be checked in Books before sending.\n${review.map(x=>'To confirm: '+x).join('\n')}\n\n${brief}`;
- return {customer_id:customerId,reference_number:reference,date:windhoekToday(),is_inclusive_tax:inclusive,line_items:lines.length?lines:[{name:`${state.project||'Requested service'} — PRICE TO BE CONFIRMED`,description:'Draft placeholder only. VisionHaus must price this service before sending.',quantity:1,rate:0}],notes,terms:'Quotation subject to scope, availability and tax review. This request does not confirm a booking. Booking requires VisionHaus approval and the agreed deposit.'};
+ const exclusions=type==='production'?pendingExtras(state).map(e=>e.title):[];
+ const notes=type==='rental'?'Equipment hire. Delivery, insurance and security deposit are quoted separately.':exclusions.length?`Requested separately: ${exclusions.join(', ')}. These services are excluded from the total; scope and price will be agreed separately.`:'Thank you for considering VisionHaus.';
+ return {customer_id:customerId,reference_number:reference,date:windhoekToday(),is_inclusive_tax:inclusive,line_items:lines.length?lines:[{name:state.project||'Requested service',description:scope+'\nScope and price to be agreed.',quantity:1,rate:0}],notes,terms:'Quotation subject to agreed scope and availability. Booking requires VisionHaus approval and the agreed deposit. Please use the quotation number as your payment reference.'};
 }
 
 // D1 owns deduplication and a lease across Worker instances. A stale lease is
 // reconciled against the full external reference before attempting another write.
 export async function createZohoQuote(request,env,connection,type,state,brief,send=fetch){
  const canonical={...state};delete canonical.section;delete canonical.step;delete canonical.complete;
+ for(const key of ['company','billingAddress'])if(!canonical[key])delete canonical[key];
  const id=await zohoHash(JSON.stringify({type,state:canonical}));
- const reference='VH-'+id.slice(0,20).toUpperCase();
+ let reference;
  const now=Date.now();
  const existing=await env.DB.prepare('SELECT * FROM quote_requests WHERE id = ?').bind(id).first();
- if(existing?.estimate_id)return {reference,accepted:true};
+ if(existing?.estimate_id)return {reference:existing.reference,accepted:true};
  const bucket=await zohoHash(`${env.ZOHO_TOKEN_KEY}:${request.headers.get('CF-Connecting-IP')||'anonymous'}:${Math.floor(now/600000)}`);
  const limit=await env.DB.prepare('INSERT INTO quote_rate_limits (bucket,attempts,expires_at) VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts = attempts + 1 RETURNING attempts').bind(bucket,now+600000).first();
  if(limit.attempts>6)throw new Error('Quote rate limit');
  await env.DB.prepare('DELETE FROM quote_rate_limits WHERE expires_at < ?').bind(now).run();
+ if(existing)reference=existing.reference;
+ else{
+  await env.DB.prepare('INSERT INTO quote_sequences (request_id) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM quote_sequences WHERE request_id = ?)').bind(id,id).run();
+  const row=await env.DB.prepare('SELECT sequence FROM quote_sequences WHERE request_id = ?').bind(id).first();
+  const label=(state.company||state.name).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24)||'Client';
+  reference=`VH-${label}-${String(row.sequence).padStart(3,'0')}`;
+ }
  await env.DB.prepare('INSERT OR IGNORE INTO quote_requests (id,reference,brief,created_at) VALUES (?,?,?,?)').bind(id,reference,brief,now).run();
  const lease=await env.DB.prepare("UPDATE quote_requests SET lease_until = ?, status = 'processing' WHERE id = ? AND estimate_id IS NULL AND lease_until < ? RETURNING *").bind(now+120000,id,now).first();
  if(!lease)throw new Error('Quote processing; retry shortly');
@@ -127,10 +142,10 @@ export async function createZohoQuote(request,env,connection,type,state,brief,se
    let customerId=lease.customer_id;
    if(!customerId){
     const contacts=await api('contacts?email='+encodeURIComponent(state.email));
-    const contact=contacts.contacts?.find(c=>c.contact_type==='customer'&&c.status!=='inactive'&&c.email?.toLowerCase()===state.email.toLowerCase()&&(!c.currency_id||c.currency_id===connection.currency_id));
+    const contact=contacts.contacts?.find(c=>((c.company_name||'').toLowerCase()===(state.company||'').toLowerCase())&&c.contact_type==='customer'&&c.status!=='inactive'&&c.email?.toLowerCase()===state.email.toLowerCase()&&(!c.currency_id||c.currency_id===connection.currency_id));
     customerId=contact?.contact_id;
     if(!customerId){
-     const created=await api('contacts',{method:'POST',body:JSON.stringify({contact_name:`${state.name} · ${state.email}`,contact_type:'customer',customer_sub_type:'individual',currency_id:connection.currency_id,contact_persons:[{first_name:state.name,email:state.email,phone:state.phone||'',is_primary_contact:true}]})});
+     const created=await api('contacts',{method:'POST',body:JSON.stringify(zohoCustomer(state,connection.currency_id))});
      customerId=created.contact?.contact_id;
     }
     if(!customerId)throw new Error('Zoho customer unavailable');

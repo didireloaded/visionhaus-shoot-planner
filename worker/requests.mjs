@@ -37,7 +37,8 @@ export async function handleSubmission(request,env){
  if(raw.website)return json(400,{error:'Please try again.'});
  if(typeof raw.requestId!=='string'||!/^vh-[a-f0-9]{64}$/.test(raw.requestId))return json(400,{error:'Please refresh the page and try submitting again.'});
  if(typeof raw.state.name!=='string'||typeof raw.state.email!=='string')return json(400,{error:'Add your name and a valid email address.'});
- const name=safeLine(raw.state.name),email=safeLine(raw.state.email),phone=safeLine(raw.state.phone);
+ const name=safeLine(raw.state.name),email=safeLine(raw.state.email),phone=safeLine(raw.state.phone),company=safeLine(raw.state.company),billingAddress=safeLine(raw.state.billingAddress);
+ if(company.length>100||billingAddress.length>150)return json(400,{error:'Please shorten the company name or billing address.'});
  if(name.length<2||name.length>100||email.length>150||!emailPattern.test(email)||phone.length>150)return json(400,{error:'Add your name and a valid email address.'});
  if(typeof raw.state.notes==='string'&&raw.state.notes.length>6000)return json(400,{error:'Please limit your notes to 6,000 characters.'});
  let state,brief;
@@ -47,12 +48,12 @@ export async function handleSubmission(request,env){
   const errors=rentalErrors(state,today);
   if(errors.length)return json(400,{error:errors.join(' ')});
   if(raw.state.ack!==true)return json(400,{error:'Confirm that you understand this is a rental request.'});
-  Object.assign(state,{name,email,phone});brief=rentalBrief(state);
+  Object.assign(state,{name,email,phone,company,billingAddress});brief=rentalBrief(state);
  }else{
   state=restore(raw.state);
   const errors=productionErrors(state);
   if(errors.length)return json(400,{error:errors.join(' ')});
-  Object.assign(state,{name,email,phone});brief=briefText(state);
+  Object.assign(state,{name,email,phone,company,billingAddress});brief=briefText(state);
  }
  // Prepare validated fields. Web3Forms free-plan sends must originate in the browser.
  // The public form access key routes to its configured inbox.

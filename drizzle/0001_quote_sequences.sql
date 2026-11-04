@@ -1,0 +1,4 @@
+CREATE TABLE quote_sequences (
+ sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+ request_id TEXT NOT NULL UNIQUE
+);

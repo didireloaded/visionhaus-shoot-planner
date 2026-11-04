@@ -16,7 +16,7 @@ s=change(s,'extras',[]);assert.ok(!reviewItems(s).includes('3 vertical cutdowns'
 s=change(s,'location','The north');assert.ok(reviewItems(s).includes('Travel & accommodation'));
 s=change(s,'service','Photo');assert.equal(s.project,'');assert.deepEqual(s.extras,[]);assert.equal(s.cameras,2); // Project selection normalises the photo setup.
 s=change(s,'project','Portraits');assert.equal(s.cameras,1);assert.ok(!equipment(s).some(x=>/operator|microphone/i.test(x)));
-assert.ok(availableExtras(s).every(e=>['raw','rush','retouch'].includes(e.id)));
+assert.ok(availableExtras(s).every(e=>['sameDay','raw','rush','retouch'].includes(e.id)));
 s=change(s,'service','Editing');s=change(s,'project','Podcast edit');assert.ok(!equipment(s).some(x=>/camera|lighting|tripod/i.test(x)));assert.equal(total(s),3800);
 s=change(change(initial(),'service','Video'),'project','Event coverage');s=change(s,'eventOutput','full');assert.match(briefText(s),/Full event recording/);s=change(s,'liveEdits',true);assert.ok(equipment(s).some(x=>x.includes('On-site editor')));assert.ok(reviewItems(s).includes('On-site editing'));
 for(const p of packages){for(const v of p.variants){const x=startPackage(p.id,v.id);assert.equal(total(x),v.price);assert.equal(priceLines(x).length,1,'Package inclusions must not be double billed')}}

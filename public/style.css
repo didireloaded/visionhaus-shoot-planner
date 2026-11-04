@@ -94,3 +94,10 @@ button,input,textarea,select,summary{scroll-margin-block:24px}
 #tab-bar>button{z-index:1}
 #tab-bar>button[aria-current]{background:transparent}
 @media(prefers-reduced-motion:no-preference){#tab-bar>button{transition:color 180ms ease,opacity 120ms ease}#tab-bar>button:active{opacity:.78;transform:none}}
+
+/* Shared select surface and matching rounded menu in supporting browsers. */
+select{appearance:none;background:#fff;border:1px solid #e1e4eb;border-radius:14px;padding:14px 38px 14px 15px;min-height:49px;color:var(--ink);font:inherit;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23626875' stroke-width='1.7'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;cursor:pointer}
+.text-field select,.icon-field select{width:100%;border:1px solid #e1e4eb;border-radius:14px;padding:14px 38px 14px 15px;min-height:49px;background-color:#fff}
+select:focus-visible{outline:2px solid #53679c;outline-offset:3px}
+@supports(appearance:base-select){select,select::picker(select){appearance:base-select}select{background-image:none}select::picker(select){border:1px solid #e1e4eb;border-radius:14px;background:#fff;padding:5px;box-shadow:0 10px 30px #17191b1a;max-height:300px;margin-top:6px}select option{padding:11px 13px;border-radius:10px;min-height:44px}select option:checked{background:var(--selected-fill);color:var(--selected-ink)}select option:hover{background:#f0f2fa}}
+.brief-screen input[type=file]{font-size:13px;width:100%}.brief-screen input::file-selector-button{border:0;border-radius:10px;padding:10px;background:#eef0fc;color:#334468;margin-right:10px;cursor:pointer}
