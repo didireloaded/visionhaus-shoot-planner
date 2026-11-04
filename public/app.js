@@ -1,4 +1,4 @@
-import {planFromBrief,readBriefPdf} from './brief.mjs';
+import {readBriefPdf} from './brief.mjs';
 import {windhoekToday} from './dates.mjs';
 import {sendRequest} from './submission.mjs';
 import {rentalItems,rentalInitial,setRentalQty,includedBy,rentalDays,rentalUnits,rentalErrors,rentalLines,rentalTotal,restoreRental,rentalBrief} from './rentals.mjs';
@@ -10,9 +10,9 @@ const money=n=>`N$ ${n.toLocaleString('en-NA')}`;
 const DRAFT='vh-configurator-v3';
 let rental=rentalInitial(),homeMode='packages',rentalCategory='All',rentalMessage='',rentalPrepared=false;
 try{const d=JSON.parse(localStorage.getItem('vh-rental-draft'));if(d&&Date.now()-d.savedAt<7*86400000)rental=restoreRental(d.state)}catch{}
-let briefTextInput='',briefProject='Video',briefChoice='',briefError='',briefFile='',briefLoading=false;
-try{const b=JSON.parse(localStorage.getItem('vh-brief')||'null');if(b&&Date.now()-b.savedAt<7*86400000){briefTextInput=String(b.text||'').slice(0,6000);briefProject=Object.hasOwn(projects,b.service)?b.service:'Video';briefChoice=String(b.project||'')}}catch{}
-function persistBrief(){try{localStorage.setItem('vh-brief',JSON.stringify({text:briefTextInput,service:briefProject,project:briefChoice,savedAt:Date.now()}))}catch{}}
+let briefTextInput='',briefProject='Video',briefChoice='',briefError='',briefFile='',briefLoading=false,briefOriginal='',briefAnalysis=null,briefAnalyzedText='';
+try{const b=JSON.parse(localStorage.getItem('vh-brief')||'null');if(b&&Date.now()-b.savedAt<7*86400000){briefTextInput=String(b.text||'').slice(0,50000);briefOriginal=String(b.original||'').slice(0,50000);briefProject=Object.hasOwn(projects,b.service)?b.service:'Video';briefChoice=String(b.project||'')}}catch{}
+function persistBrief(){try{localStorage.setItem('vh-brief',JSON.stringify({text:briefTextInput,original:briefOriginal,service:briefProject,project:briefChoice,savedAt:Date.now()}))}catch{}}
 let submitting=false,submissionError='',submissionReference='';
 const previewRequestIds=new Map();
 let state=initial(),view='home',filter='All',detailId='reels',variantId='',summaryOpen=false,lastScene='',saved=[];
@@ -171,26 +171,40 @@ function bind(){
  if($('#reset'))$('#reset').onclick=()=>{if(confirm('Clear the draft stored on this device?')){state=initial();rental=rentalInitial();rentalPrepared=false;navigate('home')}};
 }
 function briefEntry(){return `<button class="brief-entry" data-brief-open>${icon('file-text')}<span><strong>Have a project brief?</strong><small>Bring it into your plan</small></span>${icon('arrow-up-right')}</button>`}
-function briefScreen(){return `<section class="brief-screen"><button class="text-button" data-view="home">${icon('arrow-left')}Back</button>${heading('Tell us about your project','Type your idea or bring in a PDF brief.')}<form id="brief-form"><label class="text-field">Project brief<textarea id="project-brief" rows="8" maxlength="6000" placeholder="What are you making? Include people, location, dates and what you need delivered." required>${esc(briefTextInput)}</textarea></label><label class="text-field">Upload a PDF brief<input id="brief-pdf" type="file" accept="application/pdf,.pdf" ${briefLoading?'disabled':''}></label><p class="field-hint" role="status">${briefLoading?'Reading your brief…':briefFile?esc(briefFile)+' · text added above':'Text-based PDF · up to 8 MB and 30 pages. You can review the extracted text before continuing.'}</p><label class="text-field">Service<select id="brief-service">${services.map(([v,,t])=>`<option value="${v}" ${briefProject===v?'selected':''}>${t}</option>`).join('')}</select></label><label class="text-field">Project type<select id="brief-project"><option value="">Suggest from my brief</option>${projects[briefProject].map(p=>`<option ${briefChoice===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>${briefError?`<p class="submission-error" role="alert">${esc(briefError)}</p>`:''}<p class="field-hint">Your brief stays on this device until you submit. Check the suggested plan and adjust any details before requesting a quotation.</p>${button(briefLoading?'Reading PDF…':'Continue to My Plan',`type="submit" ${briefLoading?'disabled':''}`)}</form></section>`}
+async function requestBriefAnalysis(text){
+ const response=await fetch('/api/brief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,service:briefProject,project:briefChoice}),signal:AbortSignal.timeout(60000)});
+ const result=await response.json().catch(()=>null);
+ if(!response.ok||!result?.plan||!result?.summary)throw new Error(result?.error||'We could not read this brief. Your text is saved; please try again.');
+ return result;
+}
+function briefOutline(){if(!briefAnalysis)return '';const a=briefAnalysis;return `<section class="review-sheet brief-outline"><h2>Your project outline</h2><ul class="review-list">${a.requirements.map(r=>`<li>${icon('check')}${esc(r)}</li>`).join('')}</ul><div class="estimate"><span>${a.quoteRequired?'Service requires a quotation':a.unpriced.length?'Priced elements so far':'Starting estimate'}<small>Including 15% VAT · subject to review</small></span><strong>${a.quoteRequired?'Quote required':money(a.totals.gross)}</strong></div>${a.unpriced.length?`<p class="field-hint">Not included in this estimate; priced separately:</p><ul class="review-list">${a.unpriced.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>`:''}${a.questions.length?`<details class="price-details"><summary>Details to confirm ${icon('chevron-down')}</summary><ul class="review-list">${a.questions.map(r=>`<li>${esc(r)}</li>`).join('')}</ul></details>`:''}</section>`}
+function briefScreen(){return `<section class="brief-screen"><button class="text-button" data-view="home">${icon('arrow-left')}Back</button>${heading('Tell us about your project','Describe your idea or upload a PDF for a concise project outline.')}<form id="brief-form"><label class="text-field">${briefAnalysis?'Project summary':'Project brief'}<textarea id="project-brief" rows="5" maxlength="50000" placeholder="What are you making? Include people, location, dates and what you need delivered." required ${briefLoading?'disabled':''}>${esc(briefTextInput)}</textarea></label><label class="text-field">Upload a PDF brief<input id="brief-pdf" type="file" accept="application/pdf,.pdf" ${briefLoading?'disabled':''}></label><p class="field-hint" role="status">${briefLoading?'Reviewing your brief…':briefFile?esc(briefFile)+' · full brief reviewed; summary shown above':'Text-based PDF · up to 8 MB, 30 pages and 50,000 characters.'}</p><label class="text-field">Service<select id="brief-service" ${briefLoading?'disabled':''}>${services.map(([v,,t])=>`<option value="${v}" ${briefProject===v?'selected':''}>${t}</option>`).join('')}</select></label><label class="text-field">Project type<select id="brief-project" ${briefLoading?'disabled':''}><option value="">Suggest from my brief</option>${projects[briefProject].map(p=>`<option ${briefChoice===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>${briefError?`<p class="submission-error" role="alert">${esc(briefError)}</p>`:''}${briefOutline()}<p class="field-hint">Continuing or uploading a PDF securely processes the brief to prepare your outline. Your original brief is retained with your request. Review the suggested plan before submitting; final scope, availability and pricing are confirmed by VisionHaus.</p>${button(briefLoading?'Reviewing brief…':'Continue to My Plan',`type="submit" ${briefLoading?'disabled':''}`)}</form></section>`}
 function bindBrief(){
  document.querySelectorAll('[data-brief-open]').forEach(b=>b.onclick=()=>navigate('brief'));
  if($('#project-brief'))$('#project-brief').oninput=e=>{briefTextInput=e.target.value;persistBrief()};
- if($('#brief-service'))$('#brief-service').onchange=e=>{briefProject=e.target.value;briefChoice='';briefError='';persistBrief();render()};
- if($('#brief-project'))$('#brief-project').onchange=e=>{briefChoice=e.target.value;persistBrief()};
+ if($('#brief-service'))$('#brief-service').onchange=e=>{briefProject=e.target.value;briefChoice='';briefAnalysis=null;briefError='';persistBrief();render()};
+ if($('#brief-project'))$('#brief-project').onchange=e=>{briefChoice=e.target.value;briefAnalysis=null;persistBrief()};
  if($('#brief-pdf'))$('#brief-pdf').onchange=async e=>{
   const file=e.target.files[0];if(!file)return;
-  briefLoading=true;briefError='';render();
-  try{briefTextInput=await readBriefPdf(file);briefFile=file.name;persistBrief()}
-  catch(error){briefError=error.message||'We could not read this PDF. Please paste your brief instead.'}
+  briefLoading=true;briefError='';briefAnalysis=null;render();
+  try{
+   const text=await readBriefPdf(file);briefOriginal=text;briefFile=file.name;briefAnalysis=null;persistBrief();
+   const result=await requestBriefAnalysis(text);briefAnalysis=result;briefTextInput=result.summary;briefAnalyzedText=result.summary;persistBrief();
+  }catch(error){briefError=error.message||'We could not review this PDF. Please try again.'}
   finally{briefLoading=false;if(view==='brief')render()}
  };
- if($('#brief-form'))$('#brief-form').onsubmit=e=>{
+ if($('#brief-form'))$('#brief-form').onsubmit=async e=>{
   e.preventDefault();if(briefLoading||!$('#brief-form').reportValidity())return;
-  if(briefTextInput.trim().length<10){briefError='Add a little more detail about your project.';render();return}
-  const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};
-  const next=planFromBrief(briefTextInput,briefProject,briefChoice,contact);
-  if(!next){briefError='Please choose a project type so we can build the right plan.';render();return}
-  state=next;briefError='';persistBrief();navigate('plan');
+  if(briefTextInput.trim().length<20&&!briefOriginal){briefError='Add a little more detail about your project.';render();return}
+  briefLoading=true;briefError='';persistBrief();render();
+  try{
+   const source=briefOriginal?(briefTextInput===briefAnalyzedText||!briefTextInput?briefOriginal:briefOriginal+'\n\nClient summary or clarification:\n'+briefTextInput):briefTextInput;
+   let result=briefAnalysis&&briefTextInput===briefAnalyzedText?briefAnalysis:await requestBriefAnalysis(source);
+   const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};
+   state=restore({...result.plan,...contact});briefAnalysis=result;briefOriginal=source;briefTextInput=result.summary;briefAnalyzedText=result.summary;persistBrief();
+   if(view==='brief')navigate('plan');
+  }catch(error){briefError=error.message||'We could not prepare the plan. Your brief is saved.'}
+  finally{briefLoading=false;if(view==='brief')render()}
  };
 }
 function modeSwitch(){return `<nav class="home-mode" aria-label="Browse packages or equipment"><button data-mode="packages" class="${homeMode==='packages'?'selected':''}" aria-pressed="${homeMode==='packages'}">${icon('clapperboard')}Packages</button><button data-mode="rentals" class="${homeMode==='rentals'?'selected':''}" aria-pressed="${homeMode==='rentals'}">${icon('camera')}Rentals</button></nav>`}

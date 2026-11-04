@@ -102,7 +102,7 @@ export function zohoEstimate(type,state,brief,reference,customerId,taxId){
  const lines=type==='rental'?rentalLines(state).map(l=>({name:l.title,description:`${rentalItems.find(i=>i.id===l.id)?.description||''}\n${l.qty} item(s) × ${l.units} ${state.period==='week'?'week(s)':state.period==='half'?'half-day period(s)':'day(s)'}\nHire: ${state.start} to ${state.end} · ${state.fulfilment}`,quantity:l.qty*l.units,rate:l.rate})):sourceLines.map((l,i)=>({name:l.label.replace(/ × \d+(?: images| episodes)?$/,''),description:i===0&&!quoteOnly(state)?scope:l.description||'',quantity:l.quantity||1,rate:Math.round((inclusive&&!l.taxInclusive?l.amount*1.15:l.amount)/(l.quantity||1)*100)/100}));
  if(type==='production'&&quoteOnly(state))lines.unshift({name:state.project,description:scope+'\nService scope and price to be agreed.',quantity:1,rate:0});
  for(const line of lines)if(taxId)line.tax_id=taxId;
- const exclusions=type==='production'?pendingExtras(state).map(e=>e.title):[];
+ const exclusions=type==='production'?[...pendingExtras(state).map(e=>e.title),...(state.briefUnpriced||[])]:[];
  const notes=type==='rental'?'Equipment hire. Delivery, insurance and security deposit are quoted separately.':exclusions.length?`Requested separately: ${exclusions.join(', ')}. These services are excluded from the total; scope and price will be agreed separately.`:'Thank you for considering VisionHaus.';
  return {customer_id:customerId,reference_number:reference,date:windhoekToday(),is_inclusive_tax:inclusive,line_items:lines.length?lines:[{name:state.project||'Requested service',description:scope+'\nScope and price to be agreed.',quantity:1,rate:0}],notes,terms:'Quotation subject to agreed scope and availability. Booking requires VisionHaus approval and the agreed deposit. Please use the quotation number as your payment reference.'};
 }
@@ -111,7 +111,8 @@ export function zohoEstimate(type,state,brief,reference,customerId,taxId){
 // reconciled against the full external reference before attempting another write.
 export async function createZohoQuote(request,env,connection,type,state,brief,send=fetch){
  const canonical={...state};delete canonical.section;delete canonical.step;delete canonical.complete;
- for(const key of ['company','billingAddress'])if(!canonical[key])delete canonical[key];
+ for(const key of ['company','billingAddress','sourceBrief','briefQuoteRequired'])if(!canonical[key])delete canonical[key];
+ for(const key of ['briefQuestions','briefUnpriced'])if(!canonical[key]?.length)delete canonical[key];
  const id=await zohoHash(JSON.stringify({type,state:canonical}));
  let reference;
  const now=Date.now();

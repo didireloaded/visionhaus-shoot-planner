@@ -101,3 +101,5 @@ select{appearance:none;background:#fff;border:1px solid #e1e4eb;border-radius:14
 select:focus-visible{outline:2px solid #53679c;outline-offset:3px}
 @supports(appearance:base-select){select,select::picker(select){appearance:base-select}select{background-image:none}select::picker(select){border:1px solid #e1e4eb;border-radius:14px;background:#fff;padding:5px;box-shadow:0 10px 30px #17191b1a;max-height:300px;margin-top:6px}select option{padding:11px 13px;border-radius:10px;min-height:44px}select option:checked{background:var(--selected-fill);color:var(--selected-ink)}select option:hover{background:#f0f2fa}}
 .brief-screen input[type=file]{font-size:13px;width:100%}.brief-screen input::file-selector-button{border:0;border-radius:10px;padding:10px;background:#eef0fc;color:#334468;margin-right:10px;cursor:pointer}
+
+.brief-outline h2{font-size:17px;margin-bottom:16px}.brief-outline .estimate strong{font-size:22px}.brief-outline .review-list li{align-items:flex-start;line-height:1.6}.brief-outline .estimate{flex-wrap:wrap}

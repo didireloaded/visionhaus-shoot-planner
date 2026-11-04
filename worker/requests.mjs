@@ -24,12 +24,12 @@ export async function handleSubmission(request,env){
  if(request.headers.get('Origin')!==origin)return json(403,{error:'Please submit from the VisionHaus app.'});
  if(!request.headers.get('Content-Type')?.startsWith('application/json'))return json(415,{error:'Invalid request format.'});
  const length=Number(request.headers.get('Content-Length')||0);
- if(length>40000)return json(413,{error:'Your request is too long. Please shorten the notes.'});
+ if(length>260000)return json(413,{error:'Your request is too long. Please shorten the notes.'});
  let raw;
  try{
   const reader=request.body?.getReader();if(!reader)return json(400,{error:'Your request is empty.'});
   const chunks=[];let size=0;
-  for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>40000){await reader.cancel();return json(413,{error:'Your request is too long.'})}chunks.push(value)}
+  for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>260000){await reader.cancel();return json(413,{error:'Your request is too long.'})}chunks.push(value)}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength}
   raw=JSON.parse(new TextDecoder().decode(bytes));
  }catch{return json(400,{error:'Please check the request and try again.'})}

@@ -37,7 +37,7 @@ export async function readBriefPdf(file){
    const page=await document.getPage(i),content=await page.getTextContent();
    const text=content.items.map(item=>item.str+(item.hasEOL?'\n':' ')).join('').trim();
    pages.push(text);length+=text.length;
-   if(length>6000)throw new Error('This PDF contains more than 6,000 characters. Paste a shorter summary instead.');
+   if(length>50000)throw new Error('This PDF contains more than 50,000 characters. Please upload a shorter brief.');
    page.cleanup();
   }
   const text=pages.join('\n\n').trim();

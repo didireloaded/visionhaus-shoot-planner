@@ -87,7 +87,7 @@ assert.equal(new Set(estimates.map(e=>e.reference_number)).size,3);
 const nextRequest=new Request(base+'/api/requests',{headers:{'CF-Connecting-IP':'another-test-ip'}});
 const unique=await Promise.all([createZohoQuote(nextRequest,env,connection,'production',{...state,name:'Company Alpha',notes:'Unique alpha'},'alpha',mock),createZohoQuote(nextRequest,env,connection,'production',{...state,name:'Company Beta',notes:'Unique beta'},'beta',mock)]);
 assert.deepEqual(unique.map(x=>Number(x.reference.split('-').at(-1))).sort(),[4,5],'Concurrent distinct requests receive consecutive global numbers without duplicate retry gaps');
-const legacy={...state,notes:'Legacy retry'};const canonical={...legacy};delete canonical.section;delete canonical.complete;delete canonical.company;delete canonical.billingAddress;
+const legacy={...state,notes:'Legacy retry'};const canonical={...legacy};delete canonical.section;delete canonical.complete;delete canonical.company;delete canonical.billingAddress;delete canonical.sourceBrief;delete canonical.briefQuestions;delete canonical.briefUnpriced;delete canonical.briefQuoteRequired;
 const legacyId=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({type:'production',state:canonical})))).toString('hex');
 db.prepare('INSERT INTO quote_requests (id,reference,brief,created_at,estimate_id) VALUES (?,?,?,?,?)').run(legacyId,'VH-OLD-HASH','Legacy brief',0,'legacy-estimate');
 assert.equal((await createZohoQuote(nextRequest,env,connection,'production',{...legacy,company:'',billingAddress:''},'Legacy brief',mock)).reference,'VH-OLD-HASH','New empty contact fields preserve historic deduplication');
