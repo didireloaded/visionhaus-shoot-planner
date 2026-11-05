@@ -39,3 +39,5 @@ r=await handleSubmission(request({...production,to:'attacker@example.com',subjec
 r=await handleSubmission(request({...production,episodes:3,extras:['rush'],total:1}),env);const podcastPriority=await r.json();assert.match(podcastPriority.form.message,/30,000/);assert.match(podcastPriority.form.message,/Tax inclusive/);assert.match(podcastPriority.form.message,/Priority \/ next-day edit/);
 
 r=await handleSubmission(request({...production,phone:'1'.repeat(41)}),env);assert.equal(r.status,400,'Reject overlong phone fields before attempting a provider write');
+
+r=await handleSubmission(request({...production,email:'a'.repeat(90)+'@example.com'}),env);assert.equal(r.status,400,'Reject email addresses beyond the downstream contact limit');

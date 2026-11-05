@@ -107,6 +107,26 @@ export function zohoEstimate(type,state,brief,reference,customerId,taxId){
  return {customer_id:customerId,reference_number:reference,date:windhoekToday(),is_inclusive_tax:inclusive,line_items:lines.length?lines:[{name:state.project||'Requested service',description:scope+'\nScope and price to be agreed.',quantity:1,rate:0}],notes,terms:'Quotation subject to agreed scope and availability. Booking requires VisionHaus approval and the agreed deposit. Please use the quotation number as your payment reference.'};
 }
 
+// Match only the requester's own email/company. An unverified new email must
+// not be added to an existing customer's account or future invoice recipients.
+async function quoteCustomerId(api,state,currencyId){
+ const same=value=>String(value||'').trim().toLowerCase();
+ const findByEmail=async()=>{
+  const data=await api('contacts?email='+encodeURIComponent(state.email));
+  return data.contacts?.find(c=>same(c.company_name)===same(state.company)&&c.contact_type==='customer'&&c.status!=='inactive'&&same(c.email)===same(state.email)&&(!c.currency_id||c.currency_id===currencyId)&&(!c.currency_code||c.currency_code==='NAD'));
+ };
+ const existing=await findByEmail();if(existing)return existing.contact_id;
+ const customer=zohoCustomer(state,currencyId);
+ const nameTaken=async()=>{const data=await api('contacts?contact_name='+encodeURIComponent(customer.contact_name));return data.contacts?.some(c=>same(c.contact_name)===same(customer.contact_name))};
+ const separate={...customer,contact_name:`${(state.company||state.name).slice(0,50)} · ${state.email.slice(0,47)}`};
+ const create=async body=>{
+  try{const data=await api('contacts',{method:'POST',body:JSON.stringify(body)});if(!data.contact?.contact_id)throw new Error('Zoho customer unavailable');return data.contact.contact_id}
+  catch(error){const recovered=await findByEmail();if(recovered)return recovered.contact_id;throw error}
+ };
+ if(await nameTaken())return create(separate);
+ try{return await create(customer)}catch(error){if(await nameTaken())return create(separate);throw error}
+}
+
 // D1 owns deduplication and a lease across Worker instances. A stale lease is
 // reconciled against the full external reference before attempting another write.
 export async function createZohoQuote(request,env,connection,type,state,brief,send=fetch){
@@ -142,14 +162,7 @@ export async function createZohoQuote(request,env,connection,type,state,brief,se
   if(!estimateId){
    let customerId=lease.customer_id;
    if(!customerId){
-    const contacts=await api('contacts?email='+encodeURIComponent(state.email));
-    const contact=contacts.contacts?.find(c=>((c.company_name||'').toLowerCase()===(state.company||'').toLowerCase())&&c.contact_type==='customer'&&c.status!=='inactive'&&c.email?.toLowerCase()===state.email.toLowerCase()&&(!c.currency_id||c.currency_id===connection.currency_id));
-    customerId=contact?.contact_id;
-    if(!customerId){
-     const created=await api('contacts',{method:'POST',body:JSON.stringify(zohoCustomer(state,connection.currency_id))});
-     customerId=created.contact?.contact_id;
-    }
-    if(!customerId)throw new Error('Zoho customer unavailable');
+    customerId=await quoteCustomerId(api,state,connection.currency_id);
     await env.DB.prepare('UPDATE quote_requests SET customer_id = ? WHERE id = ?').bind(customerId,id).run();
    }
    // Use the organisation's existing Sales VAT, verified by ID and percentage.
