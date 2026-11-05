@@ -1,3 +1,4 @@
+import {newRequestToken} from './request-id.mjs';
 import {readBriefPdf} from './brief.mjs';
 import {windhoekToday} from './dates.mjs';
 import {sendRequest} from './submission.mjs';
@@ -8,14 +9,14 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const icon=n=>`<i data-lucide="${n}" aria-hidden="true"></i>`;
 const money=n=>`N$ ${n.toLocaleString('en-NA')}`;
 const DRAFT='vh-configurator-v3';
-let rental=rentalInitial(),homeMode='packages',rentalCategory='All',rentalMessage='',rentalPrepared=false;
+let rental={...rentalInitial(),requestToken:newRequestToken()},homeMode='packages',rentalCategory='All',rentalMessage='',rentalPrepared=false;
 try{const d=JSON.parse(localStorage.getItem('vh-rental-draft'));if(d&&Date.now()-d.savedAt<7*86400000)rental=restoreRental(d.state)}catch{}
 let briefTextInput='',briefProject='Video',briefChoice='',briefError='',briefFile='',briefLoading=false,briefOriginal='',briefAnalysis=null,briefAnalyzedText='';
 try{const b=JSON.parse(localStorage.getItem('vh-brief')||'null');if(b&&Date.now()-b.savedAt<7*86400000){briefTextInput=String(b.text||'').slice(0,50000);briefOriginal=String(b.original||'').slice(0,50000);briefProject=Object.hasOwn(projects,b.service)?b.service:'Video';briefChoice=projects[briefProject].includes(b.project)?b.project:'';briefAnalyzedText=String(b.analyzedText||'').slice(0,50000);briefFile=String(b.file||'').slice(0,200)}}catch{}
 function persistBrief(){try{localStorage.setItem('vh-brief',JSON.stringify({text:briefTextInput,original:briefOriginal,analyzedText:briefAnalyzedText,file:briefFile,service:briefProject,project:briefChoice,savedAt:Date.now()}))}catch{}}
 let submitting=false,submissionError='',submissionReference='';
 const previewRequestIds=new Map();
-let state=initial(),view='home',filter='All',detailId='reels',variantId='',summaryOpen=false,lastScene='',saved=[];
+let state={...initial(),requestToken:newRequestToken()},view='home',filter='All',detailId='reels',variantId='',summaryOpen=false,lastScene='',saved=[];
 try{const d=JSON.parse(localStorage.getItem(DRAFT));if(d&&Date.now()-d.savedAt<7*86400000)state=restore(d.state);saved=JSON.parse(localStorage.getItem('vh-package-favourites'))||[];if(!Array.isArray(saved))saved=[]}catch{}
 const persistedValues=new Map();
 function persist(){
@@ -123,7 +124,7 @@ function render(){
 function navigate(v){view=v;summaryOpen=false;render();scrollTo({top:0});focusTitle()}
 function focusTitle(){const h=$('#task h1')||$('h1');if(h){h.tabIndex=-1;h.focus({preventScroll:true})}}
 function choose(key,value){const before=total(state);state=change(state,key,value);render();if(total(state)!==before){$('#price-announcement').textContent=`Starting estimate ${money(total(state))}. Additional items quoted after review.`;document.querySelectorAll('.estimate>strong,#summary-toggle>strong').forEach(e=>motion(e,[{opacity:.55,transform:'translateY(3px)'},{opacity:1,transform:'translateY(0)'}],160))}}
-function custom(service='',project=''){state.notes='';state=change(state,'service',service);if(project)state=change(state,'project',project);navigate('plan')}
+function custom(service='',project=''){const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};state=change({...initial(),...contact,requestToken:newRequestToken()},'service',service);if(project)state=change(state,'project',project);navigate('plan')}
 function submissionFeedback(){return submissionError?`<p class="submission-error" role="alert">${esc(submissionError)}</p>`:''}
 async function submitRequest(type,payload){
  if(submitting)return false;
@@ -153,7 +154,7 @@ function bind(){
  document.querySelectorAll('[data-custom-service]').forEach(b=>b.onclick=()=>custom(b.dataset.customService,b.dataset.project));
  document.querySelectorAll('[data-service]').forEach(b=>b.onclick=()=>{state=change(state,'service',b.dataset.service);render()});
  document.querySelectorAll('.project-list [data-project]').forEach(b=>b.onclick=()=>{if(!state.service)state=change(state,'service','Video');const notes=state.notes;state=change(state,'project',b.dataset.project);state.notes=notes;render();scrollTo({top:0});focusTitle()});
- if($('#book-package'))$('#book-package').onclick=()=>{const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};state={...startPackage(detailId,variantId),...contact};navigate('plan')};
+ if($('#book-package'))$('#book-package').onclick=()=>{const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};state={...startPackage(detailId,variantId),...contact,requestToken:newRequestToken()};navigate('plan')};
  document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>{const key=b.dataset.key;const numeric=['clipCount','retouchCount','crewCount','subjects','people','episodes','perDay','episodeMinutes','cameras','hours'].includes(key)&&b.dataset.value!=='Full day';const label=b.getAttribute('aria-label');choose(key,numeric?Number(b.dataset.value):b.dataset.value);[...document.querySelectorAll('[data-key]')].find(e=>label?e.getAttribute('aria-label')===label:e.dataset.key===key&&e.dataset.value===b.dataset.value)?.focus({preventScroll:true})});
  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{const k=b.dataset.toggle;choose(k,!state[k]);document.querySelector(`[data-toggle="${k}"]`)?.focus({preventScroll:true})});
  document.querySelectorAll('[data-extra]').forEach(b=>b.onclick=()=>{const id=b.dataset.extra;choose('extras',state.extras.includes(id)?state.extras.filter(x=>x!==id):[...state.extras.filter(x=>!(id==='sameDay'&&x==='rush'||id==='rush'&&x==='sameDay')),id]);motion(document.querySelector(`[data-extra="${id}"] .radio-mark`),[{transform:'scale(.82)'},{transform:'scale(1)'}],160);document.querySelector(`[data-extra="${id}"]`)?.focus({preventScroll:true})});
@@ -165,10 +166,10 @@ function bind(){
  if($('#contact'))$('#contact').onsubmit=e=>{e.preventDefault();next()};
  if($('#plan-back'))$('#plan-back').onclick=()=>{const list=sections().map(([id])=>id),idx=list.indexOf(state.section);if(idx>0){state.section=list[idx-1];render();scrollTo({top:0})}else if(state.mode==='package'){detailId=state.packageId;variantId=state.variantId;navigate('detail')}else{state.section='project';render()}};
  if($('#change-service'))$('#change-service').onclick=()=>{if(confirm('Choose a different service? Your current setup will be replaced.'))custom()};
- if($('#edit-plan'))$('#edit-plan').onclick=()=>{state.complete=false;state.section='review';submissionError='';render()};
+ if($('#edit-plan'))$('#edit-plan').onclick=()=>{state.complete=false;state.requestToken=newRequestToken();state.section='review';submissionError='';render()};
  
  if($('#download'))$('#download').onclick=()=>{const url=URL.createObjectURL(new Blob([briefText(state)],{type:'text/plain'}));const a=document.createElement('a');a.href=url;a.download='VisionHaus-Production-Request.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
- if($('#reset'))$('#reset').onclick=()=>{if(confirm('Clear the draft stored on this device?')){state=initial();rental=rentalInitial();rentalPrepared=false;briefTextInput='';briefOriginal='';briefAnalyzedText='';briefFile='';briefAnalysis=null;briefError='';briefChoice='';briefProject='Video';persistBrief();navigate('home')}};
+ if($('#reset'))$('#reset').onclick=()=>{if(confirm('Clear the draft stored on this device?')){state={...initial(),requestToken:newRequestToken()};rental={...rentalInitial(),requestToken:newRequestToken()};rentalPrepared=false;briefTextInput='';briefOriginal='';briefAnalyzedText='';briefFile='';briefAnalysis=null;briefError='';briefChoice='';briefProject='Video';persistBrief();navigate('home')}};
 }
 function briefEntry(){return `<button class="brief-entry" data-brief-open>${icon('file-text')}<span><strong>Have a project brief?</strong><small>Bring it into your plan</small></span>${icon('arrow-up-right')}</button>`}
 async function requestBriefAnalysis(text){
@@ -202,7 +203,7 @@ function bindBrief(){
    let result=briefAnalysis&&briefTextInput===briefAnalyzedText?briefAnalysis:await requestBriefAnalysis(source);
    const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};
    briefAnalysis=result;briefOriginal=source;briefTextInput=result.summary;briefAnalyzedText=result.summary;persistBrief();
-   if(view==='brief'){state=restore({...result.plan,...contact});navigate('plan')}
+   if(view==='brief'){state=restore({...result.plan,...contact,requestToken:state.complete?newRequestToken():state.requestToken});navigate('plan')}
   }catch(error){briefError=error.message||'We could not prepare the plan. Your brief is saved.'}
   finally{briefLoading=false;if(view==='brief')render()}
  };
@@ -226,9 +227,9 @@ function bindRentals(){
  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{homeMode=b.dataset.mode;rentalMessage='';render()});
  document.querySelectorAll('[data-rental-period]').forEach(b=>b.onclick=()=>{rental.period=b.dataset.rentalPeriod;rentalMessage='';render()});
  document.querySelectorAll('[data-rental-category]').forEach(b=>b.onclick=()=>{rentalCategory=b.dataset.rentalCategory;render()});
- document.querySelectorAll('[data-rental-item]').forEach(b=>b.onclick=()=>{const id=b.dataset.rentalItem,qty=Number(b.dataset.qty);const old=Object.keys(rental.items);rental=setRentalQty(rental,id,qty);const removed=old.filter(x=>!rental.items[x]);rentalMessage=removed.length&&qty>0?'Bundle selected. Separately selected included items were removed.':'';rentalPrepared=false;render();document.querySelector(`[data-rental-item="${id}"][data-qty="${qty+1}"]`)?.focus({preventScroll:true});$('#price-announcement').textContent=`Equipment estimate ${money(rentalEstimate())} ex VAT.`});
+ document.querySelectorAll('[data-rental-item]').forEach(b=>b.onclick=()=>{if(rentalPrepared)rental.requestToken=newRequestToken();const id=b.dataset.rentalItem,qty=Number(b.dataset.qty);const old=Object.keys(rental.items);rental=setRentalQty(rental,id,qty);const removed=old.filter(x=>!rental.items[x]);rentalMessage=removed.length&&qty>0?'Bundle selected. Separately selected included items were removed.':'';rentalPrepared=false;render();document.querySelector(`[data-rental-item="${id}"][data-qty="${qty+1}"]`)?.focus({preventScroll:true});$('#price-announcement').textContent=`Equipment estimate ${money(rentalEstimate())} ex VAT.`});
  document.querySelectorAll('[data-rental-browse]').forEach(b=>b.onclick=()=>{homeMode='rentals';rentalMessage='';navigate('home')});
- document.querySelectorAll('[data-rental-cart]').forEach(b=>b.onclick=()=>{rentalPrepared=false;rental.step='kit';rentalMessage='';navigate('hire')});
+ document.querySelectorAll('[data-rental-cart]').forEach(b=>b.onclick=()=>{if(rentalPrepared)rental.requestToken=newRequestToken();rentalPrepared=false;rental.step='kit';rentalMessage='';navigate('hire')});
  document.querySelectorAll('[data-rental-next]').forEach(b=>b.onclick=rentalNext);
  document.querySelectorAll('[data-rental-step]').forEach(b=>b.onclick=()=>{const target=b.dataset.rentalStep;if(target==='review'){const errors=rentalErrors(rental,rentalToday());if(errors.length){rentalMessage=errors.join(' ');rental.step='dates';render();return}}rental.step=target;rentalMessage='';render();scrollTo({top:0})});
  document.querySelectorAll('[data-rental-fulfilment]').forEach(b=>b.onclick=()=>{rental.fulfilment=b.dataset.rentalFulfilment;rentalMessage='';render()});
@@ -239,7 +240,7 @@ function bindRentals(){
  if($('#rental-contact'))$('#rental-contact').onsubmit=e=>{e.preventDefault();rentalNext()};
  if($('#rental-back'))$('#rental-back').onclick=()=>{rentalMessage='';if(rental.step==='kit'){homeMode='rentals';navigate('home')}else{rental.step=rental.step==='review'?'dates':'kit';render();scrollTo({top:0})}};
  
- if($('#rental-edit'))$('#rental-edit').onclick=()=>{rentalPrepared=false;render()};
+ if($('#rental-edit'))$('#rental-edit').onclick=()=>{rental.requestToken=newRequestToken();rentalPrepared=false;render()};
  if($('#rental-download'))$('#rental-download').onclick=()=>{const url=URL.createObjectURL(new Blob([rentalBrief(rental)],{type:'text/plain'}));const a=document.createElement('a');a.href=url;a.download='VisionHaus-Rental-Request.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
 }
 

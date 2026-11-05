@@ -18,3 +18,7 @@ console.log('All 20 rate entries, bundle exclusions, quantity caps, date validat
 assert.equal(rentalDays({...rentalInitial(),start:'2027-02-30',end:'2027-03-03'}),0,'Impossible dates cannot roll forward into another month');
 assert.equal(rentalDays({...rentalInitial(),start:'2027-02-29',end:'2027-03-03'}),0);
 assert.equal(rentalDays({...rentalInitial(),start:'2028-02-29',end:'2028-03-01'}),2);
+
+assert.equal(restoreRental({...rentalInitial(),requestToken:'b'.repeat(32)}).requestToken,'b'.repeat(32));
+
+const companyDraft=restoreRental({...rentalInitial(),company:'Example CC',billingAddress:'Windhoek'});assert.equal(companyDraft.company,'Example CC');assert.equal(companyDraft.billingAddress,'Windhoek');

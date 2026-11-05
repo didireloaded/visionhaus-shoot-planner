@@ -39,10 +39,18 @@ export function briefPlan(data,text){
  if(locations.includes(data.location))update.location=data.location;
  else if(data.location){update.location='Other location / remote';update.venue=briefTextField(data.location,150)}
  if(data.venue)update.venue=briefTextField(data.venue,150);
- if(data.date&&validDate(data.date)&&data.date>=windhoekToday())update.date=data.date;
- update.extras=[...new Set([...briefList(data.extras),...briefList(data.unpriced).filter(x=>extras.some(e=>e.id===x))])].filter(id=>availableExtras({...state,...update}).some(e=>e.id===id));
+ if(data.date){if(validDate(data.date)&&data.date>=windhoekToday())update.date=data.date;else questions.push('Please confirm a valid preferred date; the date in the brief could not be used.')}
+ const requestedExtras=[...new Set([...briefList(data.extras),...briefList(data.unpriced).filter(x=>extras.some(e=>e.id===x))])];
+ update.extras=requestedExtras.filter(id=>availableExtras({...state,...update}).some(e=>e.id===id));
  state=restore({...state,...update,section:'review',notes:[summary,...requirements.map(x=>'- '+x)].join('\n'),sourceBrief:text,briefQuestions:questions,briefUnpriced:unpriced,briefQuoteRequired:data.customQuoteRequired===true});
- for(const key of ['hours','cameras','people','episodes','subjects','clipCount','retouchCount','perDay','episodeMinutes','crewCount'])if(data[key]!==null&&data[key]!==undefined&&state[key]!==data[key]){const note=`Requested ${key}: ${data[key]} requires scope and pricing review beyond the selected plan.`;unpriced.push(note);state.briefUnpriced.push(note)}
+ for(const key of ['hours','cameras','people','episodes','subjects','clipCount','retouchCount','perDay','episodeMinutes','crewCount'])if(data[key]!==null&&data[key]!==undefined&&state[key]!==data[key]){
+  const label=({perDay:'episodes per day',episodeMinutes:'minutes per episode',crewCount:'crew members',clipCount:'vertical cutdowns',retouchCount:'retouched images'})[key]||key;
+  const note=`Requested ${label}: ${data[key]} requires scope and pricing review beyond the selected plan.`;unpriced.push(note);state.briefUnpriced.push(note);
+  if(['cameras','people','episodes','subjects','crewCount'].includes(key)||key==='hours'&&state.mode!=='package')state.briefQuoteRequired=true;
+  if(key==='clipCount'||key==='retouchCount')state.extras=state.extras.filter(id=>id!==(key==='clipCount'?'clips':'retouch'));
+ }
+ for(const id of requestedExtras)if(!update.extras.includes(id)){const extra=extras.find(e=>e.id===id);if(extra){const note=`${extra.title}: requested outside this service's standard scope; separate quotation required.`;unpriced.push(note);state.briefUnpriced.push(note)}}
+ for(const [key,label]of [['liveEdits','On-site editor'],['gimbal','Gimbal'],['drone','Drone coverage'],['teleprompter','Teleprompter'],['extraLighting','Additional lighting'],['extraSound','Additional sound'],['extraPhotographer','Additional photographer']])if(data[key]===true&&!state[key]){const note=`${label}: requested outside this plan's included setup; scope and price require review.`;unpriced.push(note);state.briefUnpriced.push(note)}
  // Domain restoration is the boundary: model output never supplies amounts, contact data or URLs.
  const disclosed=[...new Set([...unpriced,...pendingExtras(state).map(e=>e.title+': scope and price to be agreed separately; excluded from this estimate.')])];
  return {summary,requirements,questions,unpriced:disclosed,plan:state,lines:priceLines(state),totals:priceTotals(state),quoteRequired:quoteOnly(state)};

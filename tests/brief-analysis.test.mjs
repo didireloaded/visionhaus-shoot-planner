@@ -33,3 +33,8 @@ const full=briefPlan({...extracted,project:'Event coverage',packageId:null,varia
 await assert.rejects(analyseBrief(original,'Video','Interview',{OPENAI_API_KEY:'secret'},async()=>Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(extracted)}]}]})),/unavailable/,'An explicit project cannot silently become a different cheaper service');
 
 assert.ok(quote.line_items[0].description.includes(extracted.summary),'The concise project scope belongs in quotation line descriptions');assert.ok(!quote.line_items[0].description.includes(original),'The full internal original must not be dumped into client-facing scope');
+
+const tooMany=briefPlan({...extracted,project:'Podcast',packageId:null,variantId:null,episodes:25,extras:[]},original);assert.equal(tooMany.quoteRequired,true);assert.equal(tooMany.totals.gross,0,'An unsupported episode count must not price an arbitrary default episode');
+const excessiveRetouch=briefPlan({...extracted,service:'Photo',project:'Portraits',packageId:'photo',variantId:'half',retouchCount:250,extras:['retouch']},original);assert.ok(!excessiveRetouch.plan.extras.includes('retouch'));assert.ok(excessiveRetouch.unpriced.some(x=>x.includes('250')));
+const retainerDrone=briefPlan({...extracted,project:'Monthly content',packageId:null,variantId:null,retainerTier:'growth',drone:true,extras:['raw']},original);assert.ok(retainerDrone.unpriced.some(x=>x.includes('Drone')));assert.ok(retainerDrone.unpriced.some(x=>x.includes('Source footage')));
+const pastDate=briefPlan({...extracted,date:'2020-01-01'},original);assert.ok(pastDate.questions.some(x=>x.includes('valid preferred date')));

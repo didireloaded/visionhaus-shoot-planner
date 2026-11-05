@@ -61,3 +61,5 @@ assert.equal(total(pendingPlan),1800);
 assert.match(briefText(pendingPlan),/Source footage.*price to be agreed separately; excluded from estimate/);
 assert.ok(reviewItems(pendingPlan).some(t=>t.includes('excluded from this estimate')));
 assert.equal(total({...pendingPlan,extras:[]}),1800);
+
+assert.equal(restore({...startPackage('reels','outdoor'),requestToken:'a'.repeat(32)}).requestToken,'a'.repeat(32));assert.equal(restore({...startPackage('reels','outdoor'),requestToken:'bad token'}).requestToken,'');

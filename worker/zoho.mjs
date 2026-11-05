@@ -111,7 +111,7 @@ export function zohoEstimate(type,state,brief,reference,customerId,taxId){
 // reconciled against the full external reference before attempting another write.
 export async function createZohoQuote(request,env,connection,type,state,brief,send=fetch){
  const canonical={...state};delete canonical.section;delete canonical.step;delete canonical.complete;
- for(const key of ['company','billingAddress','sourceBrief','briefQuoteRequired'])if(!canonical[key])delete canonical[key];
+ for(const key of ['company','billingAddress','sourceBrief','briefQuoteRequired','requestToken'])if(!canonical[key])delete canonical[key];
  for(const key of ['briefQuestions','briefUnpriced'])if(!canonical[key]?.length)delete canonical[key];
  const id=await zohoHash(JSON.stringify({type,state:canonical}));
  let reference;
