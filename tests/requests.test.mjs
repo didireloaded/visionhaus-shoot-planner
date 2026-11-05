@@ -37,3 +37,5 @@ r=await handleSubmission(request({...production,name:{name:'not a string'}}),env
 r=await handleSubmission(request({...production,to:'attacker@example.com',subject:'Override'}),env);const controlled=await r.json();assert.equal(controlled.form.to,undefined);assert.match(controlled.form.subject,/Production request/);
 
 r=await handleSubmission(request({...production,episodes:3,extras:['rush'],total:1}),env);const podcastPriority=await r.json();assert.match(podcastPriority.form.message,/30,000/);assert.match(podcastPriority.form.message,/Tax inclusive/);assert.match(podcastPriority.form.message,/Priority \/ next-day edit/);
+
+r=await handleSubmission(request({...production,phone:'1'.repeat(41)}),env);assert.equal(r.status,400,'Reject overlong phone fields before attempting a provider write');
