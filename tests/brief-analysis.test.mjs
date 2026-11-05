@@ -11,7 +11,7 @@ const multiple=briefPlan({...extracted,customQuoteRequired:true,unpriced:['Ten r
 const partial=briefPlan({...extracted,unpriced:['Nine additional reels and paid-media usage rights']},original);assert.ok(reviewItems(partial.plan).some(x=>x.includes('Nine additional')));assert.ok(zohoEstimate('production',partial.plan,'','VH-Test','c').notes.includes('excluded from the total'));
 assert.throws(()=>briefPlan({...extracted,project:'invented'},original));assert.throws(()=>briefPlan({...extracted,variantId:'invented'},original));
 let calls=[];
-const send=async(url,options)=>{calls.push(url);assert.ok(!url.includes('secret'));const body=JSON.parse(options.body);assert.ok(body.systemInstruction||body.instructions);if(url.includes('googleapis'))return Response.json({error:'offline'},{status:503});assert.equal(body.store,false);return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(extracted)}]}]})};
+const send=async(url,options)=>{calls.push(url);assert.ok(!url.includes('secret'));const body=JSON.parse(options.body);assert.ok(body.systemInstruction||body.instructions);if(url.includes('api.openai.com')){assert.equal(body.store,false);return Response.json({error:'offline'},{status:503})}return Response.json({candidates:[{content:{parts:[{text:JSON.stringify(extracted)}]}}]})};
 const fallback=await analyseBrief(original,'Video','',{GOOGLE_API_KEY:'google-secret',OPEN_AI_API_KEY:'openai-secret'},send);assert.equal(fallback.totals.gross,2490);assert.equal(calls.length,2);
 await assert.rejects(analyseBrief(original,'Video','',{GOOGLE_API_KEY:'secret'},async()=>Response.json({candidates:[]})),/unavailable/);
 const request=(body,headers={})=>new Request('https://vh.example/api/brief',{method:'POST',headers:{Origin:'https://vh.example','Content-Type':'application/json',...headers},body:JSON.stringify(body)});
@@ -22,3 +22,14 @@ let attempts=0;const DB={prepare(){return{bind(){return this},async first(){retu
 assert.equal((await handleBriefAnalysis(request({text:original,service:'Video'}),{DB,GOOGLE_API_KEY:'secret'},async()=>{throw 0})).status,503);
 attempts=9;assert.equal((await handleBriefAnalysis(request({text:original,service:'Video'}),{DB,GOOGLE_API_KEY:'secret'},async()=>{throw new Error('Must not call provider')})).status,429);
 console.log('Brief analysis: trusted catalogue prices, original/summary separation, unpriced scope, provider fallback, no secret URLs, origin/input checks and durable cost guard passed.');
+
+const tier=briefPlan({...extracted,project:'Monthly content',packageId:null,variantId:null,retainerTier:'professional',extras:[]},original);assert.equal(tier.totals.gross,46000);
+const series=briefPlan({...extracted,service:'Editing',project:'Colour grading',packageId:null,variantId:null,finishingFormat:'series',episodes:4,extras:[]},original);assert.equal(series.totals.gross,32200);assert.equal(series.plan.finishingFormat,'series');
+const podcast=briefPlan({...extracted,project:'Podcast',packageId:null,variantId:null,framing:'Full coverage',cameras:3,people:3,episodes:3,perDay:2,episodeMinutes:45,extras:[]},original);assert.equal(podcast.plan.perDay,2);assert.equal(podcast.plan.episodeMinutes,45);
+const raw=briefPlan({...extracted,extras:['raw']},original);assert.ok(raw.unpriced.some(x=>x.includes('Source footage')),'Unknown extra charges must be disclosed even if the model omits its unpriced list');
+const ids=briefPlan({...extracted,extras:[],unpriced:['raw','captions']},original);assert.deepEqual(ids.plan.extras,['captions','raw']);assert.ok(!ids.unpriced.includes('captions'));
+const full=briefPlan({...extracted,project:'Event coverage',packageId:null,variantId:null,eventOutput:'full',extras:[]},original);assert.equal(full.quoteRequired,true);
+
+await assert.rejects(analyseBrief(original,'Video','Interview',{OPENAI_API_KEY:'secret'},async()=>Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(extracted)}]}]})),/unavailable/,'An explicit project cannot silently become a different cheaper service');
+
+assert.ok(quote.line_items[0].description.includes(extracted.summary),'The concise project scope belongs in quotation line descriptions');assert.ok(!quote.line_items[0].description.includes(original),'The full internal original must not be dumped into client-facing scope');

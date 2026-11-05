@@ -91,5 +91,6 @@ const legacy={...state,notes:'Legacy retry'};const canonical={...legacy};delete 
 const legacyId=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({type:'production',state:canonical})))).toString('hex');
 db.prepare('INSERT INTO quote_requests (id,reference,brief,created_at,estimate_id) VALUES (?,?,?,?,?)').run(legacyId,'VH-OLD-HASH','Legacy brief',0,'legacy-estimate');
 assert.equal((await createZohoQuote(nextRequest,env,connection,'production',{...legacy,company:'',billingAddress:''},'Legacy brief',mock)).reference,'VH-OLD-HASH','New empty contact fields preserve historic deduplication');
+const longName={...state,company:'VisionHaus Final Launch Test',notes:'Long name reference'};const longResult=await createZohoQuote(new Request(base+'/api/requests',{headers:{'CF-Connecting-IP':'long-name-test'}}),env,connection,'production',longName,'long-name',mock);assert.ok(!longResult.reference.includes('--'),'Truncating a company label must not leave a duplicate reference separator');
 db.close();
 console.log('Zoho: real migration SQL, owner-only setup, scoped OAuth, session/state/replay protection, encrypted refresh token, server prices, rental/custom scope, durable deduplication/concurrency, uncertain-write recovery, and provider failures passed.');
