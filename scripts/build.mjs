@@ -1,24 +1,88 @@
-import {createHash} from 'node:crypto';
-import {readFile,writeFile,mkdir,readdir,rm,copyFile} from 'node:fs/promises';
+import { build } from 'esbuild';
+import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
+import { readFile, writeFile, mkdir, readdir, rm, copyFile } from 'node:fs/promises';
 import path from 'node:path';
-const root=process.cwd();
-const publicDir=path.join(root,'public');
-const mime={'.pdf':'application/pdf','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webmanifest':'application/manifest+json'};
-const assets={};
-async function scan(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory())await scan(file);else{const url='/'+path.relative(publicDir,file).split(path.sep).join('/');assets[url]={body:(await readFile(file)).toString('base64'),type:mime[path.extname(file)]||'application/octet-stream'}}}}
+
+const root = process.cwd();
+const publicDir = path.join(root, 'public');
+const mime = {
+  '.pdf': 'application/pdf',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
+};
+const files = [];
+async function scan(dir) {
+  for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) await scan(file);
+    else
+      files.push({
+        url: '/' + path.relative(publicDir, file).split(path.sep).join('/'),
+        bytes: await readFile(file),
+        type: mime[path.extname(file)] || 'application/octet-stream',
+      });
+  }
+}
 await scan(publicDir);
-// Cache identity follows the deployed asset set, so installed copies do not keep an old shell.
-const cacheVersion=createHash('sha256').update(JSON.stringify(assets)).digest('hex').slice(0,12);
-assets['/sw.js'].body=Buffer.from(Buffer.from(assets['/sw.js'].body,'base64').toString('utf8').replace("vh-shell-build",'vh-shell-'+cacheVersion)).toString('base64');
-const requestIdentity=(await readFile('public/request-id.mjs','utf8')).replace(/^export /gm,'');
-const dates=(await readFile('public/dates.mjs','utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const domain=(await readFile('public/domain.mjs','utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const rentals=(await readFile('public/rentals.mjs','utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const handler=(await readFile('worker/requests.mjs','utf8')).replace(/^import .*;\n/gm,'').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const zoho=(await readFile('worker/zoho.mjs','utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const briefHandler=(await readFile('worker/brief.mjs','utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const source=`${requestIdentity}\n${dates}\n${domain}\n${rentals}\n${zoho}\n${handler}\n${briefHandler}\nconst assets=${JSON.stringify(assets)};\nexport default {async fetch(request,env){const url=new URL(request.url);if(url.pathname==='/api/brief')return handleBriefAnalysis(request,env);if(url.pathname==='/api/requests')return handleSubmission(request,env);if(url.pathname.startsWith('/api/zoho/')||['/zoho-connect','/zoho-connected'].includes(url.pathname))return handleZoho(request,env);if(url.pathname.startsWith('/api/'))return new Response('Not found',{status:404});if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});const asset=assets[url.pathname==='/'?'/index.html':url.pathname];if(!asset)return new Response('Not found',{status:404});const bytes=Uint8Array.from(atob(asset.body),c=>c.charCodeAt(0));return new Response(request.method==='HEAD'?null:bytes,{headers:{'Content-Type':asset.type,'X-Content-Type-Options':'nosniff','Cache-Control':'no-cache'}})}};\n`;
-await rm('dist',{recursive:true,force:true});
-await mkdir('dist/server',{recursive:true});await mkdir('dist/.openai',{recursive:true});
-await writeFile('dist/server/index.js',source);await copyFile('.openai/hosting.json','dist/.openai/hosting.json');
-console.log(`Built Worker with ${Object.keys(assets).length} embedded assets.`);
+const digest = createHash('sha256');
+for (const file of files) digest.update(file.url).update('\0').update(file.bytes).update('\0');
+const version = digest.digest('hex').slice(0, 12);
+const shell = files
+  .filter(
+    (file) =>
+      !file.url.startsWith('/vendor/pdfjs/') &&
+      /\.(?:js|mjs|css|png|webmanifest)$/.test(file.url) &&
+      file.url !== '/sw.js',
+  )
+  .map((file) => file.url);
+shell.unshift('/');
+const assets = {};
+for (const file of files) {
+  const bytes =
+    file.url === '/sw.js'
+      ? Buffer.from(
+          file.bytes
+            .toString()
+            .replace('vh-shell-build', 'vh-shell-' + version)
+            .replace('__VH_SHELL_ASSETS__', JSON.stringify(shell)),
+        )
+      : file.bytes;
+  assets[file.url] = { body: gzipSync(bytes).toString('base64'), type: file.type };
+}
+await rm('dist', { recursive: true, force: true });
+await mkdir('dist/server', { recursive: true });
+await mkdir('dist/.openai', { recursive: true });
+await build({
+  entryPoints: ['worker/index.mjs'],
+  outfile: 'dist/server/index.js',
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  minify: true,
+  plugins: [
+    {
+      name: 'sites-assets',
+      setup(bundler) {
+        bundler.onResolve({ filter: /^visionhaus:assets$/ }, () => ({
+          path: 'assets',
+          namespace: 'sites-assets',
+        }));
+        bundler.onLoad({ filter: /.*/, namespace: 'sites-assets' }, () => ({
+          contents: 'export default ' + JSON.stringify(assets),
+          loader: 'js',
+        }));
+      },
+    },
+  ],
+});
+await copyFile('.openai/hosting.json', 'dist/.openai/hosting.json');
+console.log(`Bundled Worker and ${files.length} compressed assets; shell ${version}.`);

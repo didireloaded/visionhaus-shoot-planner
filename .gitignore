@@ -3,3 +3,5 @@
 .env.*.local
 .dev.vars*
 .sites-runtime/
+node_modules/
+dist/

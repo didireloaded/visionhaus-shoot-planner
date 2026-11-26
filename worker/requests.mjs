@@ -1,3 +1,4 @@
+import {allowSubmission} from './submission-limit.mjs';
 import {windhoekToday} from '../public/dates.mjs';
 import {restore,briefText,productionErrors} from '../public/domain.mjs';
 import {restoreRental,rentalErrors,rentalBrief} from '../public/rentals.mjs';
@@ -6,18 +7,6 @@ import {zohoConnection,createZohoQuote} from './zoho.mjs';
 const emailPattern=/^[^\s<>@\r\n]+@[^\s<>@\r\n]+\.[^\s<>@\r\n]+$/;
 const safeLine=value=>String(value||'').replace(/[\r\n\u0000-\u001f]/g,' ').trim();
 const json=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
-const attempts=new Map();
-
-// A bounded, per-worker abuse guard. Not a globally shared availability or request store.
-function allowRequest(key){
- const now=Date.now();
- if(attempts.size>2000)for(const [ip,entry]of attempts)if(now-entry.start>600000)attempts.delete(ip);
- if(attempts.size>4000)attempts.clear();
- const entry=attempts.get(key);
- if(!entry||now-entry.start>600000){attempts.set(key,{start:now,count:1});return true}
- if(entry.count>=6)return false;
- entry.count++;return true;
-}
 export async function handleSubmission(request,env){
  const origin=new URL(request.url).origin;
  if(request.method!=='POST')return json(405,{error:'Use Submit to send your request.'});
@@ -59,7 +48,9 @@ export async function handleSubmission(request,env){
  }
  // Prepare validated fields. Web3Forms free-plan sends must originate in the browser.
  // The public form access key routes to its configured inbox.
- if(!allowRequest(request.headers.get('CF-Connecting-IP')||'anonymous'))return json(429,{error:'Too many attempts. Please wait a few minutes before trying again.'});
+ try{
+  if(!await allowSubmission(request,env))return json(429,{error:'Too many attempts. Your draft is saved. Please try again later.'});
+ }catch{return json(503,{error:'Online submission is temporarily unavailable. Your draft is saved. Please try again later.'})}
  let reference=`VH-${raw.requestId.slice(3,15).toUpperCase()}`,accepted=false;
  try{
   const connection=await zohoConnection(env);

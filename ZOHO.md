@@ -21,3 +21,15 @@ D1 persists full briefs, external references, customer and estimate IDs. A canon
 The integration uses native Worker fetch/Web Crypto and D1 SQL, with no runtime dependencies. Schema-only SQL migrations live in `drizzle/` using Sites' migration journal format. `npm test` exercises migration SQL with Node 24 SQLite plus mocked Zoho responses; no real customers are contacted by tests. After OAuth, verify a clearly labelled internal test draft in Books before claiming live end-to-end acceptance.
 
 New requests receive a shared atomic sequence (`VH-Company-001`), independent of Books QT numbering. Retries retain their reference, including historic hash references. Company, contact person and optional billing address are mapped separately for new customers. Existing customer records and the organisation PDF template are not rewritten.
+
+## Submission abuse limits
+
+`/api/requests` uses atomic counters in the existing `quote_rate_limits` D1 table, following the brief limiter's bucket pattern. It permits 36 validated attempts per connecting IP per hour and 150 total per UTC day. The hourly count has the same aggregate allowance as the former six-per-ten-minute guard; Zoho's existing per-ten-minute protection is unchanged. Rejected attempts do not call a quotation provider. Buckets store SHA-256 IP hashes and expire at fixed window boundaries. Expired rows are pruned. Missing or unavailable D1 returns 503 and leaves the browser draft available for retry. There is no per-instance memory fallback.
+
+## Briefs and customer records
+
+Brief analysis processes up to 50,000 extracted characters from text PDFs, with a limit of 8 MB and 30 pages. It returns a short editable summary and catalogue-backed scope. OpenAI is tried first, with Google as fallback. Neither provider supplies trusted amounts: the application calculates prices from approved domain state. The original source text remains separate from client-facing quotation descriptions. Readable PDF text is supported; scanned images and visual page layout are not analysed.
+
+A request token distinguishes an intentional new enquiry from a retry. Company and requester matching does not add an unverified address to another customer's recipients. A same-company requester can receive a separate customer profile while retaining the legal company name. Existing customer billing details still require owner review. Do not change Zoho's Billing Address Format or invoice templates as part of app maintenance.
+
+The only owner notification recipient is didi@visionhausmedia.com.na. Web3Forms acceptance does not prove inbox receipt. Notification delivery remains unverified until actual receipt is checked; this refactor does not change that provider configuration.

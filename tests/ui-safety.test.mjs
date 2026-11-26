@@ -1,21 +1,52 @@
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import vm from 'node:vm';
-import {initial,change} from '../public/domain.mjs';
-// Exercise the production renderer with hostile brief-derived question text.
-const source=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
-const escape=source.match(/^const esc=.*$/m)[0];
-const render=source.match(/^function reviewFlags\(\).*$/m)[0];
-const payload='<img src=x onerror="alert(1)"> & scope';
-const context={state:{},reviewItems:()=>[payload],icon:()=>''};vm.createContext(context);
-vm.runInContext(escape+'\n'+render+'\nresult=reviewFlags();',context);
-assert.ok(!context.result.includes('<img'),'Brief text must not become executable HTML');
-assert.ok(context.result.includes('&lt;img'));
-assert.ok(context.result.includes('&amp; scope'));
-console.log('Brief-derived review questions and unpriced scope render as text, not HTML.');
-
-const custom=source.match(/^function custom\(.*$/m)[0];
-const fresh={initial,change,newRequestToken:()=> 'f'.repeat(32),navigate:()=>{},state:{...initial(),name:'Retained Client',notes:'Old request',sourceBrief:'Old source',briefQuoteRequired:true,briefQuestions:['Old question']}};vm.createContext(fresh);vm.runInContext(custom+";custom('Video','Interview');",fresh);
-assert.equal(fresh.state.sourceBrief,'');assert.equal(fresh.state.notes,'');assert.equal(fresh.state.briefQuoteRequired,false);assert.equal(fresh.state.name,'Retained Client');assert.equal(fresh.state.requestToken,'f'.repeat(32));
-
-const clear=source.match(/^function clearBrief\(.*$/m)[0];const savedBrief={briefTextInput:'Old summary',briefOriginal:'Old PDF',briefAnalyzedText:'Old summary',briefFile:'old.pdf',briefAnalysis:{},briefError:'',briefChoice:'Interview',briefProject:'Video',persistBrief:()=>{},state:{name:'Keep Contact'}};vm.createContext(savedBrief);vm.runInContext(clear+';clearBrief();',savedBrief);assert.equal(savedBrief.briefOriginal,'');assert.equal(savedBrief.briefTextInput,'');assert.equal(savedBrief.state.name,'Keep Contact');
+import { change, initial } from '../public/domain.mjs';
+import { app } from '../public/ui/state.mjs';
+import { esc } from '../public/ui/shared.mjs';
+import { reviewFlags, custom } from '../public/ui/plan.mjs';
+import { clearBrief } from '../public/ui/brief.mjs';
+const payload = '<img src=x onerror="alert(1)"> & scope';
+app.state = {
+  ...change(change(initial(), 'service', 'Video'), 'project', 'Interview'),
+  briefQuestions: [payload],
+};
+const result = reviewFlags();
+assert.ok(!result.includes('<img'));
+assert.ok(result.includes('&lt;img'));
+assert.ok(result.includes('&amp; scope'));
+assert.equal(esc(`'"<>`), '&#39;&quot;&lt;&gt;');
+app.state = {
+  ...initial(),
+  name: 'Retained Client',
+  notes: 'Old request',
+  sourceBrief: 'Old source',
+  briefQuoteRequired: true,
+  briefQuestions: ['Old question'],
+};
+app.navigate = () => {};
+custom('Video', 'Interview');
+assert.equal(app.state.sourceBrief, '');
+assert.equal(app.state.notes, '');
+assert.equal(app.state.briefQuoteRequired, false);
+assert.equal(app.state.name, 'Retained Client');
+assert.match(app.state.requestToken, /^[a-f0-9]{32}$/);
+Object.assign(app, {
+  briefTextInput: 'Old summary',
+  briefOriginal: 'Old PDF',
+  briefAnalyzedText: 'Old summary',
+  briefFile: 'old.pdf',
+  briefAnalysis: {},
+  briefError: '',
+  briefChoice: 'Interview',
+  briefProject: 'Video',
+});
+const storage = new Map();
+globalThis.localStorage = { setItem: (k, v) => storage.set(k, v) };
+clearBrief();
+assert.equal(app.briefOriginal, '');
+assert.equal(app.briefTextInput, '');
+assert.equal(app.state.name, 'Retained Client');
+assert.equal(JSON.parse(storage.get('vh-brief')).text, '');
+delete globalThis.localStorage;
+console.log(
+  'Imported UI functions escape hostile scope, clear briefs and preserve contacts on a new plan.',
+);

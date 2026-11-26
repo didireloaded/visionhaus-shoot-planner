@@ -37,3 +37,17 @@ Feedback only: colour transitions on controls, a slight photo zoom on hover, a s
 - No new colours outside the tokens in `public/style.css`.
 - No em dashes, generic calls to action or invented claims in UI text.
 - Client names, credits and awards must come from the company profile or the owner.
+
+## Product and interaction brief
+
+Audience: brands, artists and event organisers requesting production in Windhoek, plus approved equipment-hire clients. Primary tasks: choose a priced package, describe a custom production and request kit with dates. Navigation: Packages, My Plan, Saved and Studio. Contact details appear at Review; prices and unresolved scope stay visible before submission.
+
+The production profile remains the visual reference. Keep photo-led package browsing, the profile's two-line headline and navy summary panels. Phone navigation docks to the bottom with content clearance; desktop navigation stays in the header. Use labelled controls, visible focus, readable text and reduced-motion support. Preserve loading, validation, failed-submit and confirmed-draft states. Do not add splash screens, decorative icon tiles or invented portfolio content.
+
+My Plan keeps scope, equipment, extras and Review as distinct steps. A package's included items are not billed a second time. A starting estimate is not a final quotation. Extras awaiting review are disclosed and excluded from the priced total. Multi-camera requests do not promise owned or available inventory. See the domain modules and tests for the approved rates, rather than duplicating them in design notes.
+
+## Browser module boundaries
+
+`public/app.js` initializes one `app` state object and owns root navigation, rendering and submission. Screen modules import that state; they do not keep competing copies. Brief and rental modules own their screen interactions. Shared helpers provide escaped text and the small SVG icon set. Tests import those functions directly without parsing source text.
+
+The images in `public/work/` remain unchanged. No higher-resolution source files were supplied for this refactor. The Podcasts card intentionally describes its image as a filmed interview in alt text; it is not presented as a podcast recording. Replace it only with an owner-supplied original.

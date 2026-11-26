@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {calendarDays,displayDate,dateField} from '../public/ui/date-picker.mjs';
+import {dateStrip} from '../public/ui/plan.mjs';
+import {app} from '../public/ui/state.mjs';
+assert.equal(displayDate('2026-11-26','2026-11-01'),'Thu 26 Nov');
+assert.equal(displayDate('2027-01-01','2026-11-26'),'Fri 1 Jan 2027');
+assert.equal(displayDate('2026-02-30'),'');
+assert.equal(displayDate('<img>'),'');
+assert.equal(calendarDays('2028-02').filter(Boolean).length,29);
+assert.equal(calendarDays('2027-02').filter(Boolean).length,28);
+assert.equal(calendarDays('2026-11')[6],'2026-11-01');
+assert.throws(()=>calendarDays('2026-13'));
+app.state={date:''};
+assert.equal((dateStrip().match(/data-key="date"/g)||[]).length,14);
+assert.ok(!dateField('2026-11-26').includes('type="date"'),'Visible field does not depend on browser US formatting');
+console.log('Two-week date selection, month boundaries, leap years, safe labels and local date presentation passed.');

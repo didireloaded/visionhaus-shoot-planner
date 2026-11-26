@@ -1,223 +1,513 @@
-import {newRequestToken} from './request-id.mjs';
-import {readBriefPdf} from './brief.mjs';
-import {windhoekToday} from './dates.mjs';
-import {sendRequest} from './submission.mjs';
-import {rentalItems,rentalInitial,setRentalQty,includedBy,rentalDays,rentalUnits,rentalErrors,rentalLines,rentalTotal,restoreRental,rentalBrief} from './rentals.mjs';
-import {projects,packages,locations,initial,isPodcast,isEditing,isPhoto,isEvent,packageFor,variantFor,packageInclusions,hoursValue,shootDays,availableExtras,priceLines,total,equipment,narrative,reviewItems,change,startPackage,restore,briefText,quoteOnly,productionErrors,taxLabel,packageOvertime,retainers,isRetainer,retainerFor,isFinishing,priceTotals,pendingExtras} from './domain.mjs';
-const $=s=>document.querySelector(s);
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const icon=n=>`<i data-lucide="${n}" aria-hidden="true"></i>`;
-const money=n=>`N$ ${n.toLocaleString('en-NA')}`;
-const DRAFT='vh-configurator-v3';
-let rental={...rentalInitial(),requestToken:newRequestToken()},homeMode='packages',rentalCategory='All',rentalMessage='',rentalPrepared=false;
-try{const d=JSON.parse(localStorage.getItem('vh-rental-draft'));if(d&&Date.now()-d.savedAt<7*86400000)rental=restoreRental(d.state)}catch{}
-let briefTextInput='',briefProject='Video',briefChoice='',briefError='',briefFile='',briefLoading=false,briefOriginal='',briefAnalysis=null,briefAnalyzedText='';
-try{const b=JSON.parse(localStorage.getItem('vh-brief')||'null');if(b&&Date.now()-b.savedAt<7*86400000){briefTextInput=String(b.text||'').slice(0,50000);briefOriginal=String(b.original||'').slice(0,50000);briefProject=Object.hasOwn(projects,b.service)?b.service:'Video';briefChoice=projects[briefProject].includes(b.project)?b.project:'';briefAnalyzedText=String(b.analyzedText||'').slice(0,50000);briefFile=String(b.file||'').slice(0,200)}}catch{}
-function clearBrief(){briefTextInput='';briefOriginal='';briefAnalyzedText='';briefFile='';briefAnalysis=null;briefError='';briefChoice='';briefProject='Video';persistBrief()}
-function persistBrief(){try{localStorage.setItem('vh-brief',JSON.stringify({text:briefTextInput,original:briefOriginal,analyzedText:briefAnalyzedText,file:briefFile,service:briefProject,project:briefChoice,savedAt:Date.now()}))}catch{}}
-let submitting=false,submissionError='',submissionReference='';
-const previewRequestIds=new Map();
-let state={...initial(),requestToken:newRequestToken()},view='home',filter='All',detailId='reels',variantId='',summaryOpen=false,lastScene='',saved=[];
-try{const d=JSON.parse(localStorage.getItem(DRAFT));if(d&&Date.now()-d.savedAt<7*86400000)state=restore(d.state);saved=JSON.parse(localStorage.getItem('vh-package-favourites'))||[];if(!Array.isArray(saved))saved=[]}catch{}
-const persistedValues=new Map();
-function persist(){
- for(const [key,value,draft]of[['vh-rental-draft',rental,true],[DRAFT,state,true],['vh-package-favourites',saved,false]])try{
-  const serialized=JSON.stringify(value);if(persistedValues.get(key)===serialized)continue;
-  localStorage.setItem(key,draft?JSON.stringify({savedAt:Date.now(),state:value}):serialized);persistedValues.set(key,serialized);
- }catch{}
-}
-const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
-function motion(element,frames,duration=200){
- if(!element||reducedMotion.matches||typeof element.animate!=='function')return;
- element.getAnimations().forEach(a=>a.cancel());
- element.animate(frames,{duration,easing:'cubic-bezier(.2,0,0,1)'});
-}
-const renderedRegions=new Map();
-function mountRegion(selector,markup,force=false){
- // Keep stable navigation/header nodes and regenerate icons only in changed regions.
- const cacheKey=String(submitting)+markup;
- if(!force&&renderedRegions.get(selector)===cacheKey)return;
- const root=$(selector);root.innerHTML=markup;renderedRegions.set(selector,cacheKey);
- window.lucide.createIcons({root,attrs:{'stroke-width':1.7}});
+import { confirmAction } from './ui/dialog.mjs';
+import { bindDatePicker } from './ui/date-picker.mjs';
+import { app } from './ui/state.mjs';
+import { rentalInitial, restoreRental } from './rentals.mjs';
+import { newRequestToken } from './request-id.mjs';
+import {
+  briefText,
+  change,
+  initial,
+  packages,
+  pendingExtras,
+  projects,
+  quoteOnly,
+  restore,
+  startPackage,
+  taxLabel,
+  total,
+} from './domain.mjs';
+import { DRAFT, persist } from './ui/storage.mjs';
+import { $, button, icon, money, motion } from './ui/shared.mjs';
+import { bindRentals, rentalCheckout, rentalControls } from './ui/rentals.mjs';
+import { choose, custom, next, plan, sections, summaryContent } from './ui/plan.mjs';
+import { home } from './ui/home.mjs';
+import { detail } from './ui/detail.mjs';
+import { bindBrief, briefScreen, clearBrief } from './ui/brief.mjs';
+import { savedPage } from './ui/saved.mjs';
+import { studio } from './ui/studio.mjs';
+import { sendRequest } from './submission.mjs';
+
+app.rental = { ...rentalInitial(), requestToken: newRequestToken() };
+app.homeMode = 'packages';
+app.rentalCategory = 'All';
+app.rentalMessage = '';
+app.rentalPrepared = false;
+
+try {
+  const d = JSON.parse(localStorage.getItem('vh-rental-draft'));
+  if (d && Date.now() - d.savedAt < 7 * 86400000) app.rental = restoreRental(d.state);
+} catch {}
+
+app.briefTextInput = '';
+app.briefProject = 'Video';
+app.briefChoice = '';
+app.briefError = '';
+app.briefFile = '';
+app.briefLoading = false;
+app.briefOriginal = '';
+app.briefAnalysis = null;
+app.briefAnalyzedText = '';
+
+try {
+  const b = JSON.parse(localStorage.getItem('vh-brief') || 'null');
+  if (b && Date.now() - b.savedAt < 7 * 86400000) {
+    app.briefTextInput = String(b.text || '').slice(0, 50000);
+    app.briefOriginal = String(b.original || '').slice(0, 50000);
+    app.briefProject = Object.hasOwn(projects, b.service) ? b.service : 'Video';
+    app.briefChoice = projects[app.briefProject].includes(b.project) ? b.project : '';
+    app.briefAnalyzedText = String(b.analyzedText || '').slice(0, 50000);
+    app.briefFile = String(b.file || '').slice(0, 200);
+  }
+} catch {}
+
+app.submitting = false;
+app.submissionError = '';
+app.submissionReference = '';
+
+app.previewRequestIds = new Map();
+
+app.state = { ...initial(), requestToken: newRequestToken() };
+app.view = 'home';
+app.filter = 'All';
+app.detailId = 'reels';
+app.variantId = '';
+app.summaryOpen = false;
+app.lastScene = '';
+app.saved = [];
+
+try {
+  const d = JSON.parse(localStorage.getItem(DRAFT));
+  if (d && Date.now() - d.savedAt < 7 * 86400000) app.state = restore(d.state);
+  app.saved = JSON.parse(localStorage.getItem('vh-package-favourites')) || [];
+  if (!Array.isArray(app.saved)) app.saved = [];
+} catch {}
+
+app.persistedValues = new Map();
+
+app.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+app.renderedRegions = new Map();
+
+function mountRegion(selector, markup, force = false) {
+  // Keep stable navigation/header nodes and regenerate icons only in changed regions.
+  const cacheKey = String(app.submitting) + markup;
+  if (!force && app.renderedRegions.get(selector) === cacheKey) return;
+  const root = $(selector);
+  root.innerHTML = markup;
+  app.renderedRegions.set(selector, cacheKey);
 }
 
-function heading(title,sub=''){return `<div class="page-heading"><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div>`}
-function button(label,attr='',cls='primary'){return `<button class="${cls}" ${attr}>${label}</button>`}
-function header(){return `<div class="topbar"><button class="brand" data-view="home" aria-label="VisionHaus home"><img src="/visionhaus-logo.png" alt="" width="1736" height="704"></button><nav id="tab-bar" aria-label="Main navigation">${tabBar()}</nav></div>`}
-function tabBar(){return [['home','clapperboard','Packages'],['plan','sliders-horizontal','My Plan'],['saved','heart','Saved'],['studio','info','Studio']].map(([v,i,t])=>`<button data-view="${v}" ${navSelected()===v?'aria-current="page"':''}>${icon(i)}<span>${t}</span></button>`).join('')}
-const navSelected=()=>['detail','brief'].includes(view)?'home':view==='hire'?'plan':view;
-// Package photos are stills from VisionHaus productions, taken from the company profile.
-const workPhotos={reels:['reels','Presenter laughing in a kitchen, Remona x NOLA campaign'],photo:['photo','Portrait of a young girl in warm window light'],music:['music','Woman in a yellow dress in a grass field, Yeezir Wanaheda music video'],podcast:['podcast','Man in glasses speaking during a filmed interview'],editing:['editing','Colour curve and timeline in the edit suite'],event:['event','DJ facing the crowd with flame effects, Sound of Summer']};
-const workPhoto=(id,cls)=>{const [file,alt]=workPhotos[id];return `<img class="${cls}" src="/work/${file}.jpg" alt="${alt}" loading="lazy">`};
-const basis=p=>p.taxInclusive?'incl. VAT':'ex VAT';
-function packageCard(p){return `<article class="package-card"><button class="package-open" data-package="${p.id}">${workPhoto(p.id,'package-photo')}<span class="package-text"><strong>${p.title}</strong><small>${p.label}</small></span><span class="package-price"><small>From</small><strong>${money(p.price)}</strong><small>${basis(p)}</small></span></button><button class="save-button ${saved.includes(p.id)?'is-saved':''}" data-save="${p.id}" aria-label="${saved.includes(p.id)?'Unsave':'Save'} ${p.title}" aria-pressed="${saved.includes(p.id)}">${icon('heart')}</button></article>`}
-function home(){if(homeMode==='rentals')return rentalCatalogue();const list=packages.filter(p=>filter==='All'||p.service===filter);return `<section class="home-page"><div class="home-hero"><div class="hero-copy"><h1>Stories worth watching.<span>Work built to be remembered.</span></h1><p>Choose a package, plan a custom shoot or hire kit. VisionHaus reviews every request and replies with a quotation.</p></div><figure class="hero-photo"><img src="/work/hero.jpg" alt="Worker in a hard hat under power lines at golden hour, from a VisionHaus brand film" width="1203" height="864"><figcaption>Visual production for brands, people and culture · Windhoek</figcaption></figure></div>${modeSwitch()}<nav class="filter-chips" aria-label="Package categories">${[['All','All'],['Video','Video'],['Photo','Photo'],['Editing','Editing']].map(([v,l])=>`<button data-filter="${v}" class="${filter===v?'active':''}" aria-pressed="${filter===v}">${l}</button>`).join('')}</nav><div class="package-grid">${list.map(packageCard).join('')}</div><div class="home-actions">${briefEntry()}<button class="brief-entry" data-custom><strong>Need a different setup?</strong><small>Build a custom plan: crew, kit, extras and dates.</small></button></div></section>`}
-function detail(){const p=packages.find(p=>p.id===detailId),v=p.variants.find(v=>v.id===variantId)||p.variants[0];return `<section class="detail-page"><div class="detail-topline"><button class="icon-button" data-view="home" aria-label="Back to packages">${icon('arrow-left')}</button><button class="icon-button" data-save="${p.id}" aria-label="${saved.includes(p.id)?'Unsave':'Save'} ${p.title}" aria-pressed="${saved.includes(p.id)}">${icon('heart')}</button></div>${workPhoto(p.id,'detail-photo')}<div class="detail-content"><div class="detail-heading"><h1>${p.title}</h1><p>${p.label}</p></div><div class="variant-pills" aria-label="Package options">${p.variants.map(o=>`<button data-variant="${o.id}" class="${v.id===o.id?'selected':''}" aria-pressed="${v.id===o.id}">${o.label}</button>`).join('')}</div><div class="package-detail-price">${money(v.price)}<small>${p.id==='podcast'?'per episode':p.id==='editing'?'editing allowance':'starting price'} · ${taxLabel(startPackage(p.id,v.id))}</small></div><ul class="included-list">${v.features.map(f=>`<li>${icon('check')}${f}</li>`).join('')}</ul>${p.id==='podcast'?'<p class="field-hint">Standard episode: up to 30 minutes. Longer episodes are quoted separately.</p>':''}${packageOvertime(startPackage(p.id,v.id))?`<p class="field-hint">${packageOvertime(startPackage(p.id,v.id))}</p>`:''}<p class="detail-assurance">You choose a date in the next step. VisionHaus confirms availability with your quote.</p><button class="text-button" data-custom-service="${p.service}" data-project="${p.project}">Build a custom plan instead</button></div></section>`}
-const services=[['Video','video','Videography','Films, events & content'],['Photo','camera','Photography','People, products & events'],['Photo + video','layers','Photo + video','One joined-up production'],['Editing','scissors','Editing','Finish what you’ve started']];
-const serviceIcon=p=>p==='Podcast'?'mic':p.includes('reel')?'smartphone':p.includes('Music')?'music-2':p.includes('Event')||p==='Conference'?'calendar-range':p.includes('Interview')||p==='Testimonial'?'messages-square':p==='Commercial'?'clapperboard':'video';
-function projectChooser(){const selected=state.service||'Video';const choices=projects[selected];return `<section class="project-chooser">${heading('Plan a custom production','Pick the service, then the kind of project.')}<div class="service-switch" aria-label="Production type">${services.map(([v,i,t])=>`<button data-service="${v}" class="${selected===v?'selected':''}" aria-pressed="${selected===v}">${icon(i)}<span>${t}</span></button>`).join('')}</div><h2 class="question">${selected==='Editing'?'What needs finishing?':'What are we creating?'}</h2><div class="project-list project-grid">${choices.slice(0,8).map(p=>projectTile(p)).join('')}</div>${choices.length>8?`<details class="more-projects"><summary>More ${selected==='Editing'?'editing':'project'} options ${icon('chevron-down')}</summary><div class="project-list project-grid">${choices.slice(8).map(p=>projectTile(p)).join('')}</div></details>`:''}${briefEntry()}</section>`}
-function projectTile(p){return `<button data-project="${esc(p)}"><span>${p}</span></button>`}
-function chips(key,values){return `<div class="segments">${values.map(v=>{const value=Array.isArray(v)?v[0]:v,label=Array.isArray(v)?v[1]:v;return `<button data-key="${key}" data-value="${esc(value)}" class="${state[key]===value?'selected':''}" aria-pressed="${state[key]===value}">${label}</button>`}).join('')}</div>`}
-function counter(key,label,min,max,sub=''){return `<div class="counter-row"><span>${label}${sub?`<small>${sub}</small>`:''}</span><div class="counter"><button data-key="${key}" data-value="${state[key]-1}" aria-label="Fewer ${label.toLowerCase()}" ${state[key]<=min?'disabled':''}>${icon('minus')}</button><output aria-label="${label}">${state[key]}</output><button data-key="${key}" data-value="${state[key]+1}" aria-label="More ${label.toLowerCase()}" ${state[key]>=max?'disabled':''}>${icon('plus')}</button></div></div>`}
-function choice(key,value,label,sub,ic){return `<button class="choice ${state[key]===value?'selected':''}" data-key="${key}" data-value="${esc(value)}" aria-pressed="${state[key]===value}"><span><strong>${label}</strong><small>${sub}</small></span><b class="radio-mark">${state[key]===value?icon('check'):''}</b></button>`}
-function toggle(key,title,sub,ic){return `<button class="toggle-row" data-toggle="${key}" aria-pressed="${state[key]}"><span><strong>${title}</strong><small>${sub}</small></span><span class="switch ${state[key]?'on':''}"><b></b></span></button>`}
-function question(title,content,sub=''){return `<section class="question-group"><h2 class="question">${title}</h2>${sub?`<p class="field-hint">${sub}</p>`:''}${content}</section>`}
-function dateStrip(){const today=new Date(`${windhoekToday()}T12:00:00Z`);const fmt=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Windhoek',year:'numeric',month:'2-digit',day:'2-digit'});return `<div class="date-strip" aria-label="Preferred date in the next week">${Array.from({length:7},(_,i)=>{const d=new Date(today);d.setUTCDate(d.getUTCDate()+i);const value=fmt.format(d);return `<button data-key="date" data-value="${value}" class="${state.date===value?'selected':''}" aria-pressed="${state.date===value}"><small>${d.toLocaleDateString('en',{weekday:'short',timeZone:'Africa/Windhoek'})}</small><strong>${d.toLocaleDateString('en',{day:'numeric',timeZone:'Africa/Windhoek'})}</strong></button>`}).join('')}</div>`}
-function dateLocation(){const today=windhoekToday();return `<section class="date-choice"><h2 class="question">${isEditing(state)?'Preferred delivery date':'Preferred shoot date'}</h2>${dateStrip()}<label class="text-field">Or another date<input id="date" type="date" min="${today}" value="${esc(state.date)}"></label><p class="field-hint">Flexible? Leave the date open.</p></section><section class="input-group">${!isEditing(state)?`<label class="icon-field">${icon('map-pin')}<span>Where’s the shoot?<select id="location">${locations.map(l=>`<option ${l===state.location?'selected':''}>${l}</option>`).join('')}</select></span></label><label class="icon-field">${icon('building-2')}<span>Venue or town<input id="venue" placeholder="Optional" value="${esc(state.venue)}" maxlength="150"></span></label>`:''}</section>`}
-function podcastScope(){return `${state.mode==='custom'?question('Who’s on the podcast?',`<div class="choice-list">${choice('framing','Direct to camera','Solo','One person, direct to camera','user-round')}${choice('framing','Conversation','Conversation','Two to four people','messages-square')}${choice('framing','Full coverage','Full coverage','Multiple angles, two to four people','video')}</div>`):''}<div class="grouped-rows">${state.framing==='Direct to camera'?`<div class="fixed-row">${icon('user-round')}<span>1 speaker<small>Solo format</small></span><span class="included-tag">Fixed</span></div>`:counter('people','People',2,4)}${counter('episodes','Episodes',1,17,'Up to 17 in one plan')}</div>${question('Plan your recording days',`<div class="grouped-rows">${counter('perDay','Episodes per day',1,state.episodes)}</div><div class="schedule-strip">${icon('calendar-range')}<span>${shootDays(state)} recording day${shootDays(state)===1?'':'s'}<small>${state.episodes} episode${state.episodes===1?'':'s'} · up to ${state.perDay} per day</small></span></div>`)}${question('Length of each episode',chips('episodeMinutes',[[30,'30 min'],[45,'45 min'],[60,'60 min'],[90,'90 min']]))}${question('Time on set, per day',chips('hours',[[2,'2 hrs'],[4,'4 hrs'],[6,'6 hrs'],[8,'8 hrs'],['Full day','Full day']]))}${reviewItems(state).some(t=>t.startsWith('Recording schedule'))?`<p class="schedule-note">${icon('clock')}Allow more time or fewer episodes per day for setup and breaks.</p>`:''}`}
-function retainerScope(){const r=retainerFor(state);return `${heading('Monthly content','Choose the production capacity your business needs.')}${question('Monthly retainer',`<div class="choice-list">${retainers.map(t=>choice('retainerTier',t.id,t.title,`${money(t.price)} / month ex VAT · ${t.hours} production hours`,'calendar-range')).join('')}</div>`)}<div class="review-sheet"><h2>${r.title}</h2><p>Up to ${r.hours} production hours per month. Editing capacity is included separately.</p><ul class="review-list"><li>Video capacity: up to ${r.videos} short-form edits</li><li>Photo capacity: up to ${r.photos} edited images</li><li>${r.events?`Up to ${r.events} event booking${r.events===1?'':'s'} within monthly hours${r.id==='growth'?' · normally up to 4 hours':''}`:'Event coverage quoted separately'}</li><li>Up to ${r.revisions} revision rounds${r.id==='essential'||r.id==='professional'?' per approved video deliverable':''}</li></ul><p class="field-hint">Capacity guides, not a promise of every maximum together. Your monthly mix is agreed before booking.</p><p class="field-hint">Minimum 3 months · monthly payment in advance · ex VAT. Third-party costs and major productions are quoted separately.</p><a class="text-button" href="/monthly-content-retainers-2026.pdf" target="_blank" rel="noopener">Read full retainer details and terms</a></div>${dateLocation()}`}
-function finishingScope(){return `${heading(state.project,'Choose the billing scope for your supplied footage.')}${question('Project format',chips('finishingFormat',[['once','Once-off / film'],['series','Series / episodes']]))}${state.finishingFormat==='series'?`<div class="grouped-rows">${counter('episodes','Episodes',1,17)}</div>`:''}<p class="field-hint">${state.project==='Colour grading'?'N$12,000 once-off, or N$7,000 per episode':'N$5,000 once-off, or N$7,000 per episode'} · ex VAT. Final scope and revision allowance confirmed.</p>${dateLocation()}`}
-function shoot(){if(isRetainer(state))return retainerScope();if(isFinishing(state))return finishingScope();if(state.project==='Crew hire')return `${heading('Plan your crew','Choose the role, team size and time needed.')}${question('Which role?',chips('crewRole',['Camera operator','Photographer','Editor','Sound operator','Production assistant']))}<div class="grouped-rows">${counter('crewCount','Crew members',1,10)}</div>${question('Time needed',chips('hours',[[2,'2 hrs'],[4,'4 hrs'],[6,'6 hrs'],[8,'8 hrs'],['Full day','Full day']]))}${dateLocation()}`;const p=packageFor(state),v=variantFor(state);return `${heading(state.mode==='package'?'Date and location':'Shoot details',state.mode==='package'?`${p.title} · ${v.label}`:state.project)}${state.mode==='package'&&!isPodcast(state)?`<div class="package-inclusions"><h3>Your package includes</h3><ul class="included-list">${v.features.map(f=>`<li>${icon('check')}${f}</li>`).join('')}</ul></div>`:isPodcast(state)?podcastScope():isEditing(state)?`${question('Editing time allowance',chips('hours',[[2,'2 hrs'],[4,'4 hrs'],[8,'Full day']]))}${question('Your finished video',chips('editLength',['30 seconds','60 seconds','3 minutes','Long-form']))}`:`${isEvent(state)&&!isPhoto(state)?question('What should we deliver?',`<div class="choice-list">${choice('eventOutput','highlight','Event highlights','The best moments, in one short film','clapperboard')}${choice('eventOutput','full','Full event recording','Speeches, sessions & key moments','video')}</div>${state.eventOutput==='highlight'?chips('editLength',['30 seconds','60 seconds','3 minutes']):''}`):''}${isPhoto(state)&&!isEvent(state)?`<div class="grouped-rows">${counter('subjects',state.project==='Product photography'?'Products':'People',state.project==='Headshots'?8:1,200)}</div>`:''}${question('Time on location',chips('hours',[[2,'2 hrs'],[4,'4 hrs'],[6,'6 hrs'],[8,'8 hrs'],['Full day','Full day']]))}${!isPhoto(state)&&!isEvent(state)?`${question('Where are we filming?',chips('shootStyle',['Indoor','Outdoor','Both']))}${question('Finished video length',chips('editLength',['30 seconds','60 seconds','3 minutes','Long-form']))}`:''}`}${dateLocation()}`}
-function equipmentScreen(){if(state.project==='Crew hire')return `${heading('Your crew request','Equipment is arranged separately.')}<div class="equipment-receipt"><h2>${icon('users')}${state.crewCount} ${state.crewRole}${state.crewCount>1?'s':''}</h2><p class="field-hint">Dates, hours, experience and any equipment requirements are confirmed in the quote.</p></div>`;return `${heading('Setup','Camera coverage, lighting, sound and other kit.')} ${!isPhoto(state)&&!isEditing(state)?question('Camera coverage',chips('cameras',[[1,'1 camera'],[2,'2 cameras'],[3,'3 cameras']])):''}<div class="equipment-receipt"><h2>${icon('package-check')}Your setup includes</h2><div class="kit-grid">${equipment(state).map((e,i)=>`<span>${icon(i===0?'camera':i===1?'users':i===2?'triangle':'check')}${e}</span>`).join('')}</div></div>${!isEditing(state)?`<div class="toggle-list">${toggle('lighting','Lighting','Fixtures & modifiers','lightbulb')}${toggle('extraLighting','Additional lighting','Beyond included setup · N$1,800 per shoot ex VAT','lightbulb')}${!isPhoto(state)?toggle('extraSound','Additional sound support','Beyond included setup · N$1,800 per shoot ex VAT','mic'):''}${state.service==='Photo + video'?toggle('extraPhotographer','Another photographer','Beyond included photography · N$1,800 per shoot ex VAT','camera'):''}${!isPhoto(state)?toggle('sound','Sound recording',isPodcast(state)?'Microphones for every speaker':'Speeches, interviews & atmosphere','mic'):''}${!isPhoto(state)&&isEvent(state)?toggle('liveEdits','Live edits','On-site editor & workstation','laptop'):''}${!isPhoto(state)?toggle('gimbal','Gimbal','Smooth moving shots','move-3d'):''}${toggle('drone','Drone coverage','Pilot & permits need review','plane')}${['Interview','Testimonial','Corporate video','Commercial'].includes(state.project)?toggle('teleprompter','Teleprompter','For scripted delivery','text-cursor-input'):''}</div>`:''}<p class="field-hint">This is your requested setup. Extra kit and crew are confirmed in the quote.</p><details class="equipment-inventory"><summary>Available production kit ${icon('chevron-down')}</summary><p>Sony FX3, Sigma 24–70mm & 85mm, Sirui anamorphic, RØDE Wireless Pro, Zoom H5, GoPro HERO13, tripods, softboxes, ND filters & matte box.</p><small>Multiple cameras, fixtures, gimbals and specialist kit may be sourced. Availability is confirmed per shoot.</small></details>`}
-function delivery(){const p=packageFor(state);return `${heading('Extras','Optional additions. Priced extras update your estimate.')}<div class="choice-list extras-list">${availableExtras(state).map(e=>{const included=state.mode==='package'&&p.id==='event'&&state.variantId==='premium'&&e.id==='clips';return `<button class="choice ${state.extras.includes(e.id)||included?'selected':''}" data-extra="${e.id}" aria-pressed="${state.extras.includes(e.id)||included}" ${included?'disabled':''}><span><strong>${e.title}</strong><small>${included?'Included in your package':state.extras.includes(e.id)&&e.price===null?e.quoteNote||'Requested. VisionHaus will discuss your project and confirm a separate price. Not included in this estimate.':e.description}</small></span><span class="extra-status">${included?'Included':e.price?`+ ${money(e.price)}${isPodcast(state)&&e.id==='rush'?' / ep · tax incl.':e.id==='clips'?' / cut · ex VAT':e.id==='retouch'?' / image · ex VAT':' · ex VAT'}`:state.extras.includes(e.id)?'Price pending':'Price on review'}</span><b class="radio-mark">${state.extras.includes(e.id)||included?icon('check'):''}</b></button>`}).join('')}</div>${state.extras.includes('clips')&&state.project==='Conference'?`<div class="grouped-rows">${counter('clipCount','Vertical cutdowns',1,30)}</div>`:''}${state.extras.includes('retouch')?`<div class="grouped-rows">${counter('retouchCount','Retouched images',1,200)}</div>`:''}<label class="text-field">Anything else?<textarea id="notes" rows="3" maxlength="6000" placeholder="A reference, deadline or detail we should know…">${esc(state.notes)}</textarea></label><p class="field-hint">Priced extras update your estimate. Selecting a price-on-review extra saves your request; VisionHaus will discuss it with you and confirm the additional cost.</p>`}
-function summaryRows(){return `<dl class="summary-rows"><div><dt>Service</dt><dd>${esc(state.project)}</dd></div><div><dt>Plan</dt><dd>${state.mode==='package'?`${packageFor(state).title} · ${variantFor(state).label}`:'Custom production'}</dd></div>${!isEditing(state)?`<div><dt>Location</dt><dd>${esc(state.location)}${state.venue?`<small>${esc(state.venue)}</small>`:''}</dd></div>`:''}<div><dt>${isEditing(state)?'Delivery date':'Shoot date'}</dt><dd>${esc(state.date)||'Flexible'}</dd></div><div><dt>${isPodcast(state)?'Time per day':isEditing(state)?'Edit allowance':'Shoot time'}</dt><dd>${isRetainer(state)?`${retainerFor(state).hours} hours per month`:isFinishing(state)?state.finishingFormat==='series'?`${state.episodes} episodes`:'Once-off project':`${state.hours}${typeof state.hours==='number'?' hours':''}`}</dd></div>${isPodcast(state)?`<div><dt>Podcast</dt><dd>${state.people} speaker${state.people===1?'':'s'} · ${state.episodes} episodes</dd></div><div><dt>Schedule</dt><dd>${shootDays(state)} day${shootDays(state)===1?'':'s'} · up to ${state.perDay} episodes/day<small>${state.episodeMinutes} min per episode</small></dd></div>`:''}${isEvent(state)&&!isPhoto(state)?`<div><dt>Deliverable</dt><dd>${state.eventOutput==='full'?'Full event recording':`${state.editLength} highlight`}</dd></div>`:''}${isPhoto(state)&&!isEvent(state)?`<div><dt>${state.project==='Product photography'?'Products':'People'}</dt><dd>${state.subjects}</dd></div>`:''}${isEditing(state)?`<div><dt>Finished runtime</dt><dd>${esc(state.editLength)}</dd></div>`:''}${!isPhoto(state)&&!isEvent(state)&&!isPodcast(state)&&!isEditing(state)&&!isRetainer(state)&&state.project!=='Crew hire'?`<div><dt>Setting</dt><dd>${esc(state.shootStyle)}</dd></div>${state.mode==='custom'?`<div><dt>Finished runtime</dt><dd>${esc(state.editLength)}</dd></div>`:''}`:''}</dl>`}
-function estimate(){if(quoteOnly(state))return '<div class="estimate"><span>Final scope and rate confirmed by VisionHaus</span><strong class="quote-price">Quote required</strong></div>';return `<div class="estimate"><span>${state.mode==='package'?'Package estimate':'Priced so far'}<small>${taxLabel(state)} · final quote follows</small></span><strong>${money(total(state))}</strong></div><p class="field-hint">VAT (15%): ${money(priceTotals(state).vat)} · Total including VAT: ${money(priceTotals(state).gross)}${isRetainer(state)?' per month':''}</p>${pendingExtras(state).length?`<p class="field-hint pending-extra-note" role="status">${pendingExtras(state).map(e=>esc(e.title)).join(', ')}: requested, price pending. These extras are not included in the total. VisionHaus will discuss the job with you before confirming their cost.</p>`:''}`}
-function review(){return `${heading('Review your request','Check the details, add your contact information and send it to VisionHaus.')}<section class="review-sheet"><div class="review-title"><h2>${state.project}</h2><span class="included-tag">${state.mode==='package'?'Package':'Custom'}</span></div>${summaryRows()}${state.mode==='package'?`<h3 class="package-review-label">Package includes</h3><ul class="review-list">${packageInclusions(state).map(f=>`<li>${icon('check')}${f}</li>`).join('')}</ul>`:''}<div class="review-subtitle"><h3>Requested setup</h3><button class="text-button" data-section="${state.mode==='package'||isRetainer(state)||isEditing(state)?'shoot':'equipment'}">Edit</button></div><ul class="review-list">${equipment(state).map(e=>`<li>${icon('check')}${e}</li>`).join('')}</ul><div class="review-subtitle"><h3>Extras</h3><button class="text-button" data-section="delivery">Edit</button></div><ul class="review-list">${availableExtras(state).filter(e=>state.extras.includes(e.id)).map(e=>`<li>${icon('check')}${e.title}${e.price===null?' (requested, price agreed separately, not in the total)':''}</li>`).join('')||'<li class="muted">No extras selected</li>'}</ul>${state.notes?`<p class="client-note">${esc(state.notes)}</p>`:''}${estimate()}<details class="price-details"><summary>Priced items ${icon('chevron-down')}</summary>${priceLines(state).map(l=>`<div><span>${l.label}</span><b>${money(l.amount)}<small>${l.taxInclusive?'Tax incl.':'Ex VAT'}</small></b></div>`).join('')}</details></section>${reviewFlags()}<form id="contact"><h2 class="question">Where can we reach you?</h2><label class="text-field">Full name<input id="name" autocomplete="name" value="${esc(state.name)}" placeholder="Your name" maxlength="100" required></label><label class="text-field">Company <span class="muted">(optional)</span><input id="company" autocomplete="organization" value="${esc(state.company)}" maxlength="100" placeholder="Leave blank for a personal request"></label><label class="text-field">Billing address <span class="muted">(optional)</span><input id="billingAddress" autocomplete="street-address" value="${esc(state.billingAddress)}" maxlength="150" placeholder="Company or personal billing address"></label><label class="text-field">Email<input id="email" autocomplete="email" type="email" value="${esc(state.email)}" placeholder="you@example.com" maxlength="100" required></label><label class="text-field">Phone <span class="muted">(optional)</span><input id="phone" autocomplete="tel" type="tel" value="${esc(state.phone)}" placeholder="+264" maxlength="40"></label></form><p class="email-note">${icon('send')}Submit your request to VisionHaus. We’ll review it and reply with a quotation.</p>${submissionFeedback()}`}
-function reviewFlags(){const items=reviewItems(state);return items.length?`<details class="review-flags"><summary>${icon('circle-dashed')}To confirm in your quote <span>${items.length}</span>${icon('chevron-down')}</summary><ul>${items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></details>`:''}
-function summaryContent(){return `<p class="summary-label">Your production</p><h2>${state.project}</h2><p class="summary-narrative">${narrative(state)}</p>${estimate()}${reviewFlags()}`}
-function sections(){return state.mode==='package'||isEditing(state)||isRetainer(state)?[['shoot','Details'],['delivery','Extras'],['review','Review']]:[['shoot','Scope'],['equipment','Setup'],['delivery','Extras'],['review','Review']]}
-function nextLabel(){return state.section==='review'?'Submit request':'Continue'}
-function plan(){if(!state.project||state.section==='project')return projectChooser();if(state.complete)return completion();return `<div class="plan-layout"><div class="plan-main"><div class="plan-topline"><button class="icon-button" id="plan-back" aria-label="Previous step">${icon('arrow-left')}</button><span>${state.mode==='package'?'Your package':'Your custom plan'}</span><button class="text-button" id="change-service">Change</button></div><nav class="plan-sections" aria-label="Plan steps">${sections().map(([id,t],i)=>`<button data-section="${id}" ${state.section===id?'aria-current="step"':''}><span>${i+1}</span>${t}</button>`).join('')}</nav><section id="task">${({shoot,equipment:equipmentScreen,delivery,review})[state.section]()}${state.section!=='review'?submissionFeedback():''}</section></div><aside class="desktop-summary">${summaryContent()}${button(nextLabel(),'data-next')}${state.section==='review'?'<small class="dock-caption">Sent directly to VisionHaus</small>':''}</aside></div>`}
-function completion(){return `<section class="completion"><span class="completion-icon">${icon('check')}</span>${heading('Request submitted','VisionHaus will review your brief and reply with a quotation.')}<p class="request-reference">${esc(submissionReference)}</p><div class="review-sheet">${estimate()}</div><button class="secondary" id="download">${icon('download')}Download your brief</button><button class="text-button" id="edit-plan">Edit a new request</button><p class="field-hint">Quote request only. Booking requires approval and a 50% deposit.</p></section>`}
-function savedPage(){const items=packages.filter(p=>saved.includes(p.id));return `<section class="home-page">${heading('Saved packages','Packages you marked with the heart.')} ${items.length?`<div class="package-grid">${items.map(packageCard).join('')}</div>`:`<div class="empty-state">${icon('heart')}<p>Nothing saved yet. Tap the heart on a package to keep it here.</p>${button('Browse packages','data-view="home"')}</div>`}</section>`}
-function studio(){return `<section class="studio-page">${heading('VisionHaus Media','Visual production for brands, people and culture, based in Windhoek.')}<dl class="studio-credits"><div><dt>Recognition</dt><dd>Ataman: Best Cinematography 2024</dd><dd>Remona x NOLA: two awards, MTC Excellence Awards 2025</dd></div><div><dt>Brands and clients</dt><dd>Sanlam, NamPower, Lady Pohamba, Savanna, NOLA, Letshego, Oshikandela, Ogilvy, African CDC</dd></div><div><dt>Film and television</dt><dd>Ataman, TSEK, Crossover Hearts, The Long Road, Emanya, Speel Aan, Uno &amp; Hatago, B2 Passage</dd></div></dl><div class="studio-info"><span>${icon('map-pin')}Windhoek, Namibia</span><a href="mailto:didi@visionhausmedia.com.na">${icon('mail')}didi@visionhausmedia.com.na</a><a href="https://visionhausmedia.com.na/" target="_blank" rel="noopener noreferrer">${icon('globe')}visionhausmedia.com.na</a><span>${icon('shield-check')}No account needed</span></div><p class="field-hint">Your draft stays on this device for 7 days. Requests go directly to VisionHaus. Dates are confirmed after quote review.</p><button class="secondary" id="reset">${icon('rotate-ccw')}Clear draft</button></section>`}
-function controls(){if(view==='hire'||view==='home'&&homeMode==='rentals')return rentalControls();if(view==='detail'){const p=packages.find(p=>p.id===detailId),v=p.variants.find(v=>v.id===variantId)||p.variants[0];return `<div class="detail-dock"><span><small>${taxLabel(startPackage(p.id,v.id))}</small><strong>${money(v.price)}</strong></span>${button('Choose package','id="book-package"')}</div>`}if(view!=='plan'||!state.project||state.section==='project'||state.complete)return '';return `<div class="mobile-plan-controls"><details class="mobile-disclosure" ${summaryOpen?'open':''}><summary id="summary-toggle" aria-label="Expand production summary"><span>${state.mode==='package'?'Package estimate':'Priced so far'}</span><strong class="${quoteOnly(state)?'quote-price':''}">${quoteOnly(state)?'Quote required':money(total(state))}${icon('chevron-up')}</strong><small>${taxLabel(state)} · ${pendingExtras(state).length?'excludes price-pending extras':'final quote follows'}</small></summary><div class="mobile-summary">${summaryContent()}</div></details>${button(state.section==='review'?'Submit':'Continue','data-next','primary dock-next')}</div>`}
-function render(){
- persist();
- const scene=view==='home'?`${view}:${homeMode}:${filter}:${rentalCategory}`:view==='detail'?`${view}:${detailId}`:view==='hire'?`${view}:${rental.step}:${rentalPrepared}`:view==='plan'?`${view}:${state.project}:${state.section}:${state.complete}`:view;
- mountRegion('#app-header',header());
- mountRegion('#app',({home,detail,plan,hire:rentalCheckout,brief:briefScreen,saved:savedPage,studio})[view](),true);
- mountRegion('#control-surface',controls());
- document.body.dataset.view=view;bind();
- if(scene!==lastScene){
-  const target=view==='plan'?$('#task')||$('#app'):view==='home'&&lastScene.startsWith('home:')?$('.package-grid')||$('.rental-list')||$('#app'):$('#app');
-  motion(target,[{opacity:.35,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],220);
- }
- lastScene=scene;
- if(submitting){document.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);document.querySelectorAll('[data-next],[data-rental-next]').forEach(el=>{el.textContent='Submitting…';el.setAttribute('aria-busy','true')})}
+function header() {
+  return /* HTML */ `<div class="topbar">
+    <button class="brand" data-view="home" aria-label="VisionHaus home">
+      <img src="/visionhaus-logo.png" alt="" width="1736" height="704" />
+    </button>
+    <nav id="tab-bar" aria-label="Main navigation">${tabBar()}</nav>
+  </div>`;
 }
-function navigate(v){view=v;summaryOpen=false;render();scrollTo({top:0});focusTitle()}
-function focusTitle(){const h=$('#task h1')||$('h1');if(h){h.tabIndex=-1;h.focus({preventScroll:true})}}
-function choose(key,value){const before=total(state);state=change(state,key,value);render();if(total(state)!==before){$('#price-announcement').textContent=`Starting estimate ${money(total(state))}. Additional items quoted after review.`;document.querySelectorAll('.estimate>strong,#summary-toggle>strong').forEach(e=>motion(e,[{opacity:.55,transform:'translateY(3px)'},{opacity:1,transform:'translateY(0)'}],160))}}
-function custom(service='',project=''){const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};state=change({...initial(),...contact,requestToken:newRequestToken()},'service',service);if(project)state=change(state,'project',project);navigate('plan')}
-function submissionFeedback(){return submissionError?`<p class="submission-error" role="alert">${esc(submissionError)}</p>`:''}
-async function submitRequest(type,payload){
- if(submitting)return false;
- submitting=true;submissionError='';render();
- try{
-  const copy={...payload};delete copy.complete;
-  const bytes=new TextEncoder().encode(JSON.stringify({type,state:copy}));
-  let digest;
-  if(crypto.subtle)digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
-  else{const fingerprint=new TextDecoder().decode(bytes);if(!previewRequestIds.has(fingerprint))previewRequestIds.set(fingerprint,crypto.getRandomValues(new Uint8Array(32)));digest=previewRequestIds.get(fingerprint)}
-  const requestId='vh-'+[...digest].map(b=>b.toString(16).padStart(2,'0')).join('');
-  submissionReference=await sendRequest({type,state:copy,requestId});return true;
- }catch(error){submissionError=error.name==='TimeoutError'||error.name==='AbortError'?'We could not confirm submission. Your draft is saved. Please try Submit again.':error.userMessage||'We could not confirm submission. Your draft is saved. Please try again.';return false}
- finally{submitting=false}
+
+function tabBar() {
+  return [
+    ['home', 'clapperboard', 'Packages'],
+    ['plan', 'sliders-horizontal', 'My Plan'],
+    ['saved', 'heart', 'Saved'],
+    ['studio', 'info', 'Studio'],
+  ]
+    .map(
+      ([v, i, t]) =>
+        /* HTML */ `<button data-view="${v}" ${navSelected() === v ? 'aria-current="page"' : ''}>
+          ${icon(i)}<span>${t}</span>
+        </button>`,
+    )
+    .join('');
 }
-async function next(){if(submitting)return;const errors=productionErrors(state);if(errors.length){submissionError=errors.join(' ');render();$('.submission-error')?.scrollIntoView({block:'center'});return}if(state.section==='review'){if(!$('#contact').reportValidity())return;const success=await submitRequest('production',state);if(success)state.complete=true;render();if(success){scrollTo({top:0});focusTitle()}else $('.submission-error')?.scrollIntoView({block:'center'});return}const steps=sections().map(([id])=>id);state.section=steps[steps.indexOf(state.section)+1]||'review';summaryOpen=false;submissionError='';render();scrollTo({top:0});focusTitle()}
-function bind(){
- bindBrief();
- bindRentals();
- document.querySelectorAll('button[data-view]').forEach(b=>b.onclick=()=>navigate(b.dataset.view));
- document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;render();document.querySelector(`[data-filter="${filter}"]`)?.focus({preventScroll:true})});
- document.querySelectorAll('[data-package]').forEach(b=>b.onclick=()=>{detailId=b.dataset.package;variantId='';navigate('detail')});
- document.querySelectorAll('[data-variant]').forEach(b=>b.onclick=()=>{variantId=b.dataset.variant;render();document.querySelector(`[data-variant="${variantId}"]`)?.focus({preventScroll:true})});
- document.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>{const id=b.dataset.save;saved=saved.includes(id)?saved.filter(x=>x!==id):[...saved,id];render()});
- document.querySelectorAll('[data-custom]').forEach(b=>b.onclick=()=>custom());
- document.querySelectorAll('[data-custom-service]').forEach(b=>b.onclick=()=>custom(b.dataset.customService,b.dataset.project));
- document.querySelectorAll('[data-service]').forEach(b=>b.onclick=()=>{state=change(state,'service',b.dataset.service);render()});
- document.querySelectorAll('.project-list [data-project]').forEach(b=>b.onclick=()=>{if(!state.service)state=change(state,'service','Video');const notes=state.notes;state=change(state,'project',b.dataset.project);state.notes=notes;render();scrollTo({top:0});focusTitle()});
- if($('#book-package'))$('#book-package').onclick=()=>{const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};state={...startPackage(detailId,variantId),...contact,requestToken:newRequestToken()};navigate('plan')};
- document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>{const key=b.dataset.key;const numeric=['clipCount','retouchCount','crewCount','subjects','people','episodes','perDay','episodeMinutes','cameras','hours'].includes(key)&&b.dataset.value!=='Full day';const label=b.getAttribute('aria-label');choose(key,numeric?Number(b.dataset.value):b.dataset.value);[...document.querySelectorAll('[data-key]')].find(e=>label?e.getAttribute('aria-label')===label:e.dataset.key===key&&e.dataset.value===b.dataset.value)?.focus({preventScroll:true})});
- document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{const k=b.dataset.toggle;choose(k,!state[k]);document.querySelector(`[data-toggle="${k}"]`)?.focus({preventScroll:true})});
- document.querySelectorAll('[data-extra]').forEach(b=>b.onclick=()=>{const id=b.dataset.extra;choose('extras',state.extras.includes(id)?state.extras.filter(x=>x!==id):[...state.extras.filter(x=>!(id==='sameDay'&&x==='rush'||id==='rush'&&x==='sameDay')),id]);motion(document.querySelector(`[data-extra="${id}"] .radio-mark`),[{transform:'scale(.82)'},{transform:'scale(1)'}],160);document.querySelector(`[data-extra="${id}"]`)?.focus({preventScroll:true})});
- document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>{state.section=b.dataset.section;summaryOpen=false;render();scrollTo({top:0});focusTitle()});
- for(const id of ['location','date'])if($('#'+id))$('#'+id).onchange=e=>{choose(id,e.target.value);$('#'+id)?.focus({preventScroll:true})};
- for(const id of ['name','company','billingAddress','email','phone','notes','venue'])if($('#'+id))$('#'+id).oninput=e=>{state[id]=e.target.value;persist()};
- document.querySelectorAll('[data-next]').forEach(b=>b.onclick=next);
- if($('.mobile-disclosure'))$('.mobile-disclosure').ontoggle=e=>{if(e.target.isConnected)summaryOpen=e.target.open};
- if($('#contact'))$('#contact').onsubmit=e=>{e.preventDefault();next()};
- if($('#plan-back'))$('#plan-back').onclick=()=>{const list=sections().map(([id])=>id),idx=list.indexOf(state.section);if(idx>0){state.section=list[idx-1];render();scrollTo({top:0})}else if(state.mode==='package'){detailId=state.packageId;variantId=state.variantId;navigate('detail')}else{state.section='project';render()}};
- if($('#change-service'))$('#change-service').onclick=()=>{if(confirm('Choose a different service? Your current setup will be replaced.'))custom()};
- if($('#edit-plan'))$('#edit-plan').onclick=()=>{state.complete=false;state.requestToken=newRequestToken();state.section='review';submissionError='';render()};
- 
- if($('#download'))$('#download').onclick=()=>{const url=URL.createObjectURL(new Blob([briefText(state)],{type:'text/plain'}));const a=document.createElement('a');a.href=url;a.download='VisionHaus-Production-Request.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
- if($('#reset'))$('#reset').onclick=()=>{if(confirm('Clear the draft stored on this device?')){state={...initial(),requestToken:newRequestToken()};rental={...rentalInitial(),requestToken:newRequestToken()};rentalPrepared=false;clearBrief();navigate('home')}};
+
+const navSelected = () =>
+  ['detail', 'brief'].includes(app.view) ? 'home' : app.view === 'hire' ? 'plan' : app.view;
+
+function controls() {
+  if (app.view === 'hire' || (app.view === 'home' && app.homeMode === 'rentals'))
+    return rentalControls();
+  if (app.view === 'detail') {
+    const p = packages.find((p) => p.id === app.detailId),
+      v = p.variants.find((v) => v.id === app.variantId) || p.variants[0];
+    return /* HTML */ `<div class="detail-dock">
+      <span
+        ><small>${taxLabel(startPackage(p.id, v.id))}</small
+        ><strong>${money(v.price)}</strong></span
+      >${button('Choose package', 'id="book-package"')}
+    </div>`;
+  }
+  if (
+    app.view !== 'plan' ||
+    !app.state.project ||
+    app.state.section === 'project' ||
+    app.state.complete
+  )
+    return '';
+  return /* HTML */ `<div class="mobile-plan-controls">
+    <details class="mobile-disclosure" ${app.summaryOpen ? 'open' : ''}>
+      <summary id="summary-toggle" aria-label="Expand production summary">
+        <span>${app.state.mode === 'package' ? 'Package estimate' : 'Priced so far'}</span
+        ><strong class="${quoteOnly(app.state) ? 'quote-price' : ''}"
+          >${quoteOnly(app.state) ? 'Quote required' : money(total(app.state))}${icon('chevron-up')}</strong
+        ><small
+          >${taxLabel(app.state)} ·
+          ${pendingExtras(app.state).length ? 'excludes price-pending extras' : 'final quote follows'}</small
+        >
+      </summary>
+      <div class="mobile-summary">${summaryContent()}</div>
+    </details>
+    ${button(app.state.section === 'review' ? 'Submit' : 'Continue', 'data-next', 'primary dock-next')}
+  </div>`;
 }
-function briefEntry(){return `<button class="brief-entry" data-brief-open><strong>Have a project brief?</strong><small>Paste it or upload a PDF. We turn it into a plan you can edit.</small></button>`}
-async function requestBriefAnalysis(text){
- const response=await fetch('/api/brief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,service:briefProject,project:briefChoice}),signal:AbortSignal.timeout(60000)});
- const result=await response.json().catch(()=>null);
- if(!response.ok||!result?.plan||!result?.summary)throw new Error(result?.error||'We could not read this brief. Your text is saved; please try again.');
- return result;
+
+function render() {
+  persist();
+  const scene =
+    app.view === 'home'
+      ? `${app.view}:${app.homeMode}:${app.filter}:${app.rentalCategory}`
+      : app.view === 'detail'
+        ? `${app.view}:${app.detailId}`
+        : app.view === 'hire'
+          ? `${app.view}:${app.rental.step}:${app.rentalPrepared}`
+          : app.view === 'plan'
+            ? `${app.view}:${app.state.project}:${app.state.section}:${app.state.complete}`
+            : app.view;
+  mountRegion('#app-header', header());
+  mountRegion(
+    '#app',
+    { home, detail, plan, hire: rentalCheckout, brief: briefScreen, saved: savedPage, studio }[
+      app.view
+    ](),
+    true,
+  );
+  mountRegion('#control-surface', controls());
+  document.body.dataset.view = app.view;
+  bind();
+  if (scene !== app.lastScene) {
+    const target =
+      app.view === 'plan'
+        ? $('#task') || $('#app')
+        : app.view === 'home' && app.lastScene.startsWith('home:')
+          ? $('.package-grid') || $('.rental-list') || $('#app')
+          : $('#app');
+    motion(
+      target,
+      [
+        { opacity: 0.35, transform: 'translateY(6px)' },
+        { opacity: 1, transform: 'translateY(0)' },
+      ],
+      220,
+    );
+  }
+  app.lastScene = scene;
+  if (app.submitting) {
+    document.querySelectorAll('button,input,textarea,select').forEach((el) => (el.disabled = true));
+    document.querySelectorAll('[data-next],[data-rental-next]').forEach((el) => {
+      el.textContent = 'Submitting…';
+      el.setAttribute('aria-busy', 'true');
+    });
+  }
 }
-function briefOutline(){if(!briefAnalysis)return '';const a=briefAnalysis;return `<section class="review-sheet brief-outline"><h2>Your project outline</h2><ul class="review-list">${a.requirements.map(r=>`<li>${icon('check')}${esc(r)}</li>`).join('')}</ul><div class="estimate"><span>${a.quoteRequired?'Service requires a quotation':a.unpriced.length?'Priced elements so far':'Starting estimate'}<small>Including 15% VAT · subject to review</small></span><strong>${a.quoteRequired?'Quote required':money(a.totals.gross)}</strong></div>${a.unpriced.length?`<p class="field-hint">Not included in this estimate; priced separately:</p><ul class="review-list">${a.unpriced.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>`:''}${a.questions.length?`<details class="price-details"><summary>Details to confirm ${icon('chevron-down')}</summary><ul class="review-list">${a.questions.map(r=>`<li>${esc(r)}</li>`).join('')}</ul></details>`:''}</section>`}
-function briefScreen(){return `<section class="brief-screen"><button class="text-button" data-view="home">${icon('arrow-left')}Back</button>${heading('Tell us about your project','Describe your idea or upload a PDF for a concise project outline.')}<form id="brief-form"><label class="text-field">${briefAnalysis?'Project summary':'Project brief'}<textarea id="project-brief" rows="5" maxlength="50000" placeholder="What are you making? Include people, location, dates and what you need delivered." ${briefOriginal?'':'required'} ${briefLoading?'disabled':''}>${esc(briefTextInput)}</textarea></label><label class="text-field">Upload a PDF brief<input id="brief-pdf" type="file" accept="application/pdf,.pdf" ${briefLoading?'disabled':''}></label><p class="field-hint" role="status">${briefLoading?'Reviewing your brief…':briefFile?esc(briefFile)+(briefAnalysis?' · readable PDF text reviewed; summary shown above':' · PDF text saved; continue to review'):briefOriginal?'Saved brief text retained · continue to review or start a new brief.':'PDF text only · up to 8 MB, 30 pages and 50,000 characters.'}</p>${briefOriginal||briefFile?`<button class="text-button" type="button" id="brief-new" ${briefLoading?'disabled':''}>Start a new brief</button>`:''}<label class="text-field">Service<select id="brief-service" ${briefLoading?'disabled':''}>${services.map(([v,,t])=>`<option value="${v}" ${briefProject===v?'selected':''}>${t}</option>`).join('')}</select></label><label class="text-field">Project type<select id="brief-project" ${briefLoading?'disabled':''}><option value="">Suggest from my brief</option>${projects[briefProject].map(p=>`<option ${briefChoice===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>${briefError?`<p class="submission-error" role="alert">${esc(briefError)}</p>`:''}${briefOutline()}<p class="field-hint">Continuing or uploading a PDF securely processes the brief to prepare your outline. Your original brief text is retained with your request. Review the suggested plan before submitting; final scope, availability and pricing are confirmed by VisionHaus.</p>${button(briefLoading?'Reviewing brief…':'Continue to My Plan',`type="submit" ${briefLoading?'disabled':''}`)}</form></section>`}
-function bindBrief(){
- if($('#brief-new'))$('#brief-new').onclick=()=>{if(!briefLoading&&confirm('Start a new brief? This clears the saved brief text on this device.')){clearBrief();render();$('#project-brief')?.focus()}};
- document.querySelectorAll('[data-brief-open]').forEach(b=>b.onclick=()=>navigate('brief'));
- if($('#project-brief'))$('#project-brief').oninput=e=>{briefTextInput=e.target.value;briefAnalysis=null;$('.brief-outline')?.remove();persistBrief()};
- if($('#brief-service'))$('#brief-service').onchange=e=>{briefProject=e.target.value;briefChoice='';briefAnalysis=null;briefError='';persistBrief();render()};
- if($('#brief-project'))$('#brief-project').onchange=e=>{briefChoice=e.target.value;briefAnalysis=null;persistBrief();render();$('#brief-project')?.focus({preventScroll:true})};
- if($('#brief-pdf'))$('#brief-pdf').onchange=async e=>{
-  const file=e.target.files[0];if(!file)return;
-  briefLoading=true;briefError='';briefAnalysis=null;render();
-  try{
-   const text=await readBriefPdf(file);briefOriginal=text;briefFile=file.name;briefAnalysis=null;briefTextInput='';briefAnalyzedText='';persistBrief();
-   const result=await requestBriefAnalysis(text);briefAnalysis=result;briefTextInput=result.summary;briefAnalyzedText=result.summary;persistBrief();
-  }catch(error){briefError=error.message||'We could not review this PDF. Please try again.'}
-  finally{briefLoading=false;if(view==='brief')render()}
- };
- if($('#brief-form'))$('#brief-form').onsubmit=async e=>{
-  e.preventDefault();if(briefLoading||!$('#brief-form').reportValidity())return;
-  if(briefTextInput.trim().length<20&&!briefOriginal){briefError='Add a little more detail about your project.';render();return}
-  briefLoading=true;briefError='';persistBrief();render();
-  try{
-   const source=briefOriginal?(briefTextInput===briefAnalyzedText||!briefTextInput?briefOriginal:briefOriginal+'\n\nClient summary or clarification:\n'+briefTextInput):briefTextInput;
-   let result=briefAnalysis&&briefTextInput===briefAnalyzedText?briefAnalysis:await requestBriefAnalysis(source);
-   const contact={name:state.name,company:state.company,billingAddress:state.billingAddress,email:state.email,phone:state.phone};
-   briefAnalysis=result;briefOriginal=source;briefTextInput=result.summary;briefAnalyzedText=result.summary;persistBrief();
-   if(view==='brief'){state=restore({...result.plan,...contact,requestToken:state.complete?newRequestToken():state.requestToken});navigate('plan')}
-  }catch(error){briefError=error.message||'We could not prepare the plan. Your brief is saved.'}
-  finally{briefLoading=false;if(view==='brief')render()}
- };
+
+function navigate(v) {
+  app.view = v;
+  app.summaryOpen = false;
+  render();
+  scrollTo({ top: 0 });
+  focusTitle();
 }
-function modeSwitch(){return `<nav class="home-mode" aria-label="Browse packages or equipment"><button data-mode="packages" class="${homeMode==='packages'?'selected':''}" aria-pressed="${homeMode==='packages'}">Production packages</button><button data-mode="rentals" class="${homeMode==='rentals'?'selected':''}" aria-pressed="${homeMode==='rentals'}">Equipment hire</button></nav>`}
-function rentalPeriodLabel(){return rental.period==='half'?'half day':rental.period==='week'?'week':'day'}
-function rentalPeriodSelector(){return `<div class="segments rental-period" aria-label="Rental rate basis">${[['half','Half day'],['day','Daily'],['week','Weekly']].map(([value,label])=>`<button data-rental-period="${value}" class="${rental.period===value?'selected':''}" aria-pressed="${rental.period===value}">${label}</button>`).join('')}</div>`}
-function rentalCount(){return rentalLines(rental).reduce((sum,l)=>sum+l.qty,0)}
-function rentalEstimate(){return rentalUnits(rental)?rentalTotal(rental):rentalLines(rental).reduce((sum,l)=>sum+l.qty*l.rate,0)}
-function rentalCounter(item){const qty=rental.items[item.id]||0,parent=includedBy(rental,item.id);return `<div class="rental-counter"><button data-rental-item="${item.id}" data-qty="${qty-1}" aria-label="Remove one ${esc(item.title)}" ${qty===0||parent?'disabled':''}>${icon('minus')}</button><output aria-label="Quantity of ${esc(item.title)}">${qty}</output><button data-rental-item="${item.id}" data-qty="${qty+1}" aria-label="Add one ${esc(item.title)}" ${qty>=item.qty||parent?'disabled':''}>${icon('plus')}</button></div>`}
-function rentalRow(item){const parent=includedBy(rental,item.id);return `<article class="rental-row ${parent?'bundle-included':''}"><div class="rental-item-copy"><h2>${item.title}</h2><p>${item.description}</p><div class="rental-item-rate">${parent?`Included in ${rentalItems.find(i=>i.id===parent).title}`:`<strong>${money(item[rental.period])}</strong><small>/ ${rentalPeriodLabel()} · max ${item.qty}</small>`}</div></div>${rentalCounter(item)}</article>`}
-function rentalCatalogue(){const list=rentalItems.filter(i=>rentalCategory==='All'||i.category===rentalCategory);return `<section class="home-page rental-catalogue">${modeSwitch()}${heading('Equipment hire','Cameras, lenses, audio and lighting modifiers at rate-card prices.')} ${rentalPeriodSelector()}<nav class="filter-chips rental-categories" aria-label="Equipment categories">${['All','Cameras','Lenses','Audio','Modifiers','GoPros','Accessories'].map(c=>`<button data-rental-category="${c}" class="${rentalCategory===c?'active':''}" aria-pressed="${rentalCategory===c}">${c}</button>`).join('')}</nav><p class="rental-rate-note">${rental.period==='half'?'Up to 4 hours · same-day return':rental.period==='week'?'5–7 days per weekly block':'Per calendar hire day'} · Ex VAT</p>${rentalMessage?`<p class="rental-feedback" role="status">${esc(rentalMessage)}</p>`:''}<div class="rental-list">${list.map(rentalRow).join('')}</div><details class="rental-terms"><summary>Before you hire ${icon('chevron-down')}</summary><p>Equipment is hired to approved freelancers and production companies. Insurance or a security deposit is required. Availability is confirmed after review.</p><p>Lighting modifiers are supplied without fixtures. The inventory shown is the published rate-card quantity, not live availability.</p></details></section>`}
-function rentalSelectedKit(){return `<section>${heading('Your rental kit','Check your selection before choosing dates.')}<div class="rental-list">${rentalItems.filter(i=>rental.items[i.id]>0&&!includedBy(rental,i.id)).map(rentalRow).join('')}</div><button class="text-button" data-rental-browse>${icon('plus')}Add more equipment</button>${!rentalCount()?'<p class="field-hint">Your kit is empty. Add equipment to continue.</p>':''}</section>`}
-function rentalDates(){return `${heading('When do you need it?','Choose dates and how you’ll receive the kit.')} ${rentalPeriodSelector()}<form id="rental-dates" class="rental-date-form"><label class="text-field">Start date<input id="rental-start" type="date" min="${rentalToday()}" value="${esc(rental.start)}" required></label><label class="text-field">Return date<input id="rental-end" type="date" min="${rental.start||rentalToday()}" value="${esc(rental.end)}" required></label></form><p class="field-hint">${rental.period==='half'?'Half-day hire is up to 4 hours, with collection and return on the same date.':rental.period==='week'?'Weekly hire covers 5–7 days. Longer hires use full seven-day blocks, including a part-used final block.':'Start and return dates both count as calendar hire days.'}</p><h2 class="question">Collection or delivery?</h2><div class="segments">${['Collection','Delivery'].map(v=>`<button data-rental-fulfilment="${v}" class="${rental.fulfilment===v?'selected':''}" aria-pressed="${rental.fulfilment===v}">${icon(v==='Collection'?'map-pin':'truck')}${v}</button>`).join('')}</div>${rental.fulfilment==='Delivery'?`<label class="text-field rental-address">Delivery town or address<input id="rental-address" value="${esc(rental.address)}" maxlength="200" placeholder="Where should we deliver?"></label><p class="field-hint">Delivery is quoted separately.</p>`:'<p class="field-hint">Collection in Windhoek. Exact times are arranged after approval.</p>'}<div class="rental-duration" aria-live="polite">${rentalDays(rental)?`${rentalDays(rental)} calendar day${rentalDays(rental)===1?'':'s'} · ${rentalUnits(rental)} ${rentalPeriodLabel()} rate unit${rentalUnits(rental)===1?'':'s'}`:'Choose both dates to calculate hire.'}</div>`}
-function rentalReview(){return `${heading('Review your rental','Check the kit and dates, then add your details.')}<section class="review-sheet"><div class="review-title"><h2>Equipment hire</h2><span class="included-tag">Request</span></div><dl class="summary-rows"><div><dt>Dates</dt><dd>${esc(rental.start)} to ${esc(rental.end)}</dd></div><div><dt>Duration</dt><dd>${rentalDays(rental)} calendar days</dd></div><div><dt>Rate</dt><dd>${rentalUnits(rental)} × ${rentalPeriodLabel()}</dd></div><div><dt>Handover</dt><dd>${rental.fulfilment}${rental.fulfilment==='Delivery'&&rental.address?`<small>${esc(rental.address)}</small>`:''}</dd></div></dl><div class="rental-price-lines">${rentalLines(rental).map(l=>`<div><span>${l.title}<small>${l.qty} × ${money(l.rate)} × ${l.units} ${rentalPeriodLabel()}</small></span><strong>${money(l.amount)}</strong></div>`).join('')}</div><div class="estimate"><span>Equipment estimate<small>Ex VAT · subject to approval</small></span><strong>${money(rentalTotal(rental))}</strong></div><p class="field-hint">Delivery, insurance and any refundable security deposit are excluded.</p></section><form id="rental-contact"><h2 class="question">Your details</h2>${[['name','Full name','text','name'],['company','Company (optional)','text','organization'],['billingAddress','Billing address (optional)','text','street-address'],['email','Email','email','email'],['phone','Phone (optional)','tel','tel']].map(([id,label,type,auto])=>`<label class="text-field">${label}<input id="hire-${id}" type="${type}" autocomplete="${auto}" value="${esc(rental[id])}" maxlength="150" ${['name','email'].includes(id)?'required':''}></label>`).join('')}<label class="text-field">Notes or preferred collection time<textarea id="hire-notes" rows="3" maxlength="1500">${esc(rental.notes)}</textarea></label><label class="rental-ack"><input type="checkbox" id="rental-ack" ${rental.ack?'checked':''} required><span>I understand this is a request. Availability, eligibility and insurance or deposit requirements need confirmation.</span></label></form><p class="email-note">${icon('send')}Submit your request to VisionHaus. We’ll review it and reply with a quotation.</p>${submissionFeedback()}`}
-function rentalToday(){return windhoekToday()}
-function rentalCheckout(){if(rentalPrepared)return `<section class="completion"><span class="completion-icon">${icon('check')}</span>${heading('Rental request submitted','VisionHaus will review availability and reply with a quotation.')}<p class="request-reference">${esc(submissionReference)}</p><button class="secondary" id="rental-download">${icon('download')}Download request</button><button class="text-button" id="rental-edit">Edit a new request</button><p class="field-hint">This is not a confirmed equipment reservation.</p></section>`;return `<section class="rental-checkout"><div class="plan-topline"><button class="icon-button" id="rental-back" aria-label="Previous rental step">${icon('arrow-left')}</button><span>Your rental request</span><button class="text-button" data-rental-browse>Equipment</button></div><nav class="plan-sections" aria-label="Rental steps">${[['kit','Your kit'],['dates','Dates'],['review','Review']].map(([v,t])=>`<button data-rental-step="${v}" ${rental.step===v?'aria-current="step"':''}>${t}</button>`).join('')}</nav>${rentalMessage?`<p class="rental-feedback" role="alert">${esc(rentalMessage)}</p>`:''}${({kit:rentalSelectedKit,dates:rentalDates,review:rentalReview})[rental.step]()}</section>`}
-function rentalControls(){if(rentalPrepared&&view==='hire'||view==='home'&&!rentalCount())return '';return `<div class="detail-dock rental-dock"><span><small>${rentalUnits(rental)?'Equipment estimate':`Selected kit / ${rentalPeriodLabel()}`}</small><strong>${money(rentalEstimate())}</strong><small>${rentalCount()} item${rentalCount()===1?'':'s'} · Ex VAT</small></span>${button(view==='home'?'Review kit':rental.step==='review'?'Submit':'Continue',view==='home'?'data-rental-cart':'data-rental-next')}</div>`}
-async function rentalNext(){if(submitting)return;rentalMessage='';submissionError='';if(!rentalCount()){rentalMessage='Choose at least one item.';render();return}if(rental.step==='kit'){rental.step='dates'}else if(rental.step==='dates'){if(!$('#rental-dates').reportValidity())return;const errors=rentalErrors(rental,rentalToday());if(errors.length){rentalMessage=errors.join(' ');render();return}rental.step='review'}else{const errors=rentalErrors(rental,rentalToday());if(errors.length){rentalMessage=errors.join(' ');rental.step='dates';render();return}if(!$('#rental-contact').reportValidity())return;const success=await submitRequest('rental',rental);if(success)rentalPrepared=true;render();if(success){scrollTo({top:0});focusTitle()}else $('.submission-error')?.scrollIntoView({block:'center'});return}render();scrollTo({top:0});focusTitle()}
-function bindRentals(){
- document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{homeMode=b.dataset.mode;rentalMessage='';render()});
- document.querySelectorAll('[data-rental-period]').forEach(b=>b.onclick=()=>{rental.period=b.dataset.rentalPeriod;rentalMessage='';render()});
- document.querySelectorAll('[data-rental-category]').forEach(b=>b.onclick=()=>{rentalCategory=b.dataset.rentalCategory;render()});
- document.querySelectorAll('[data-rental-item]').forEach(b=>b.onclick=()=>{if(rentalPrepared)rental.requestToken=newRequestToken();const id=b.dataset.rentalItem,qty=Number(b.dataset.qty);const old=Object.keys(rental.items);rental=setRentalQty(rental,id,qty);const removed=old.filter(x=>!rental.items[x]);rentalMessage=removed.length&&qty>0?'Bundle selected. Separately selected included items were removed.':'';rentalPrepared=false;render();document.querySelector(`[data-rental-item="${id}"][data-qty="${qty+1}"]`)?.focus({preventScroll:true});$('#price-announcement').textContent=`Equipment estimate ${money(rentalEstimate())} ex VAT.`});
- document.querySelectorAll('[data-rental-browse]').forEach(b=>b.onclick=()=>{homeMode='rentals';rentalMessage='';navigate('home')});
- document.querySelectorAll('[data-rental-cart]').forEach(b=>b.onclick=()=>{if(rentalPrepared)rental.requestToken=newRequestToken();rentalPrepared=false;rental.step='kit';rentalMessage='';navigate('hire')});
- document.querySelectorAll('[data-rental-next]').forEach(b=>b.onclick=rentalNext);
- document.querySelectorAll('[data-rental-step]').forEach(b=>b.onclick=()=>{const target=b.dataset.rentalStep;if(target==='review'){const errors=rentalErrors(rental,rentalToday());if(errors.length){rentalMessage=errors.join(' ');rental.step='dates';render();return}}rental.step=target;rentalMessage='';render();scrollTo({top:0})});
- document.querySelectorAll('[data-rental-fulfilment]').forEach(b=>b.onclick=()=>{rental.fulfilment=b.dataset.rentalFulfilment;rentalMessage='';render()});
- for(const key of ['start','end'])if($('#rental-'+key))$('#rental-'+key).onchange=e=>{rental[key]=e.target.value;if(key==='start'&&rental.period==='half')rental.end=e.target.value;rentalMessage='';render()};
- if($('#rental-address'))$('#rental-address').oninput=e=>{rental.address=e.target.value;persist()};
- for(const key of ['name','company','billingAddress','email','phone','notes'])if($('#hire-'+key))$('#hire-'+key).oninput=e=>{rental[key]=e.target.value;persist()};
- if($('#rental-ack'))$('#rental-ack').onchange=e=>{rental.ack=e.target.checked;persist()};
- if($('#rental-contact'))$('#rental-contact').onsubmit=e=>{e.preventDefault();rentalNext()};
- if($('#rental-back'))$('#rental-back').onclick=()=>{rentalMessage='';if(rental.step==='kit'){homeMode='rentals';navigate('home')}else{rental.step=rental.step==='review'?'dates':'kit';render();scrollTo({top:0})}};
- 
- if($('#rental-edit'))$('#rental-edit').onclick=()=>{rental.requestToken=newRequestToken();rentalPrepared=false;render()};
- if($('#rental-download'))$('#rental-download').onclick=()=>{const url=URL.createObjectURL(new Blob([rentalBrief(rental)],{type:'text/plain'}));const a=document.createElement('a');a.href=url;a.download='VisionHaus-Rental-Request.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+
+function focusTitle() {
+  const h = $('#task h1') || $('h1');
+  if (h) {
+    h.tabIndex = -1;
+    h.focus({ preventScroll: true });
+  }
 }
+
+async function submitRequest(type, payload) {
+  if (app.submitting) return false;
+  app.submitting = true;
+  app.submissionError = '';
+  render();
+  try {
+    const copy = { ...payload };
+    delete copy.complete;
+    const bytes = new TextEncoder().encode(JSON.stringify({ type, state: copy }));
+    let digest;
+    if (crypto.subtle) digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    else {
+      const fingerprint = new TextDecoder().decode(bytes);
+      if (!app.previewRequestIds.has(fingerprint))
+        app.previewRequestIds.set(fingerprint, crypto.getRandomValues(new Uint8Array(32)));
+      digest = app.previewRequestIds.get(fingerprint);
+    }
+    const requestId = 'vh-' + [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+    app.submissionReference = await sendRequest({ type, state: copy, requestId });
+    return true;
+  } catch (error) {
+    app.submissionError =
+      error.name === 'TimeoutError' || error.name === 'AbortError'
+        ? 'We could not confirm submission. Your draft is saved. Please try Submit again.'
+        : error.userMessage ||
+          'We could not confirm submission. Your draft is saved. Please try again.';
+    return false;
+  } finally {
+    app.submitting = false;
+  }
+}
+
+function bind() {
+  bindDatePicker();
+  bindBrief();
+  bindRentals();
+  document
+    .querySelectorAll('button[data-view]')
+    .forEach((b) => (b.onclick = () => navigate(b.dataset.view)));
+  document.querySelectorAll('[data-filter]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        app.filter = b.dataset.filter;
+        render();
+        document.querySelector(`[data-filter="${app.filter}"]`)?.focus({ preventScroll: true });
+      }),
+  );
+  document.querySelectorAll('[data-package]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        app.detailId = b.dataset.package;
+        app.variantId = '';
+        navigate('detail');
+      }),
+  );
+  document.querySelectorAll('[data-variant]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        app.variantId = b.dataset.variant;
+        render();
+        document.querySelector(`[data-variant="${app.variantId}"]`)?.focus({ preventScroll: true });
+      }),
+  );
+  document.querySelectorAll('[data-save]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        const id = b.dataset.save;
+        app.saved = app.saved.includes(id) ? app.saved.filter((x) => x !== id) : [...app.saved, id];
+        render();
+      }),
+  );
+  document.querySelectorAll('[data-custom]').forEach((b) => (b.onclick = () => custom()));
+  document
+    .querySelectorAll('[data-custom-service]')
+    .forEach((b) => (b.onclick = () => custom(b.dataset.customService, b.dataset.project)));
+  document.querySelectorAll('[data-service]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        app.state = change(app.state, 'service', b.dataset.service);
+        render();
+      }),
+  );
+  document.querySelectorAll('.project-list [data-project]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        if (!app.state.service) app.state = change(app.state, 'service', 'Video');
+        const notes = app.state.notes;
+        app.state = change(app.state, 'project', b.dataset.project);
+        app.state.notes = notes;
+        render();
+        scrollTo({ top: 0 });
+        focusTitle();
+      }),
+  );
+  if ($('#book-package'))
+    $('#book-package').onclick = () => {
+      const contact = {
+        name: app.state.name,
+        company: app.state.company,
+        billingAddress: app.state.billingAddress,
+        email: app.state.email,
+        phone: app.state.phone,
+      };
+      app.state = {
+        ...startPackage(app.detailId, app.variantId),
+        ...contact,
+        requestToken: newRequestToken(),
+      };
+      navigate('plan');
+    };
+  document.querySelectorAll('[data-key]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        const key = b.dataset.key;
+        const numeric =
+          [
+            'clipCount',
+            'retouchCount',
+            'crewCount',
+            'subjects',
+            'people',
+            'episodes',
+            'perDay',
+            'episodeMinutes',
+            'cameras',
+            'hours',
+          ].includes(key) && b.dataset.value !== 'Full day';
+        const label = b.getAttribute('aria-label');
+        choose(key, numeric ? Number(b.dataset.value) : b.dataset.value);
+        [...document.querySelectorAll('[data-key]')]
+          .find((e) =>
+            label
+              ? e.getAttribute('aria-label') === label
+              : e.dataset.key === key && e.dataset.value === b.dataset.value,
+          )
+          ?.focus({ preventScroll: true });
+      }),
+  );
+  document.querySelectorAll('[data-toggle]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        const k = b.dataset.toggle;
+        choose(k, !app.state[k]);
+        document.querySelector(`[data-toggle="${k}"]`)?.focus({ preventScroll: true });
+      }),
+  );
+  document.querySelectorAll('[data-extra]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        const id = b.dataset.extra;
+        choose(
+          'extras',
+          app.state.extras.includes(id)
+            ? app.state.extras.filter((x) => x !== id)
+            : [
+                ...app.state.extras.filter(
+                  (x) =>
+                    !((id === 'sameDay' && x === 'rush') || (id === 'rush' && x === 'sameDay')),
+                ),
+                id,
+              ],
+        );
+        motion(
+          document.querySelector(`[data-extra="${id}"] .radio-mark`),
+          [{ transform: 'scale(.82)' }, { transform: 'scale(1)' }],
+          160,
+        );
+        document.querySelector(`[data-extra="${id}"]`)?.focus({ preventScroll: true });
+      }),
+  );
+  document.querySelectorAll('[data-section]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        app.state.section = b.dataset.section;
+        app.summaryOpen = false;
+        render();
+        scrollTo({ top: 0 });
+        focusTitle();
+      }),
+  );
+  for (const id of ['location', 'date'])
+    if ($('#' + id))
+      $('#' + id).onchange = (e) => {
+        choose(id, e.target.value);
+        $('#' + id)?.focus({ preventScroll: true });
+      };
+  for (const id of ['name', 'company', 'billingAddress', 'email', 'phone', 'notes', 'venue'])
+    if ($('#' + id))
+      $('#' + id).oninput = (e) => {
+        app.state[id] = e.target.value;
+        persist();
+      };
+  document.querySelectorAll('[data-next]').forEach((b) => (b.onclick = next));
+  if ($('.mobile-disclosure'))
+    $('.mobile-disclosure').ontoggle = (e) => {
+      if (e.target.isConnected) app.summaryOpen = e.target.open;
+    };
+  if ($('#contact'))
+    $('#contact').onsubmit = (e) => {
+      e.preventDefault();
+      next();
+    };
+  if ($('#plan-back'))
+    $('#plan-back').onclick = () => {
+      const list = sections().map(([id]) => id),
+        idx = list.indexOf(app.state.section);
+      if (idx > 0) {
+        app.state.section = list[idx - 1];
+        render();
+        scrollTo({ top: 0 });
+      } else if (app.state.mode === 'package') {
+        app.detailId = app.state.packageId;
+        app.variantId = app.state.variantId;
+        navigate('detail');
+      } else {
+        app.state.section = 'project';
+        render();
+      }
+    };
+  if ($('#change-service'))
+    $('#change-service').onclick = async () => {
+      if (
+        await confirmAction({
+          title: 'Choose a different service?',
+          message:
+            'This replaces your package, dates, setup, extras and notes. Your contact details and saved brief text are kept.',
+          action: 'Change service',
+        })
+      )
+        custom();
+    };
+  if ($('#edit-plan'))
+    $('#edit-plan').onclick = () => {
+      app.state.complete = false;
+      app.state.requestToken = newRequestToken();
+      app.state.section = 'review';
+      app.submissionError = '';
+      render();
+    };
+
+  if ($('#download'))
+    $('#download').onclick = () => {
+      const url = URL.createObjectURL(new Blob([briefText(app.state)], { type: 'text/plain' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'VisionHaus-Production-Request.txt';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+  if ($('#reset'))
+    $('#reset').onclick = async () => {
+      if (
+        await confirmAction({
+          title: 'Clear drafts on this device?',
+          message:
+            'This removes your production plan, equipment selection, contact details and saved brief text. Saved packages and requests already submitted to VisionHaus are kept.',
+          action: 'Clear drafts',
+          cancel: 'Keep drafts',
+        })
+      ) {
+        app.state = { ...initial(), requestToken: newRequestToken() };
+        app.rental = { ...rentalInitial(), requestToken: newRequestToken() };
+        app.rentalPrepared = false;
+        clearBrief();
+        navigate('home');
+      }
+    };
+}
+
+Object.assign(app, {
+  mountRegion,
+  header,
+  tabBar,
+  controls,
+  render,
+  navigate,
+  focusTitle,
+  submitRequest,
+  bind,
+});
 
 render();
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

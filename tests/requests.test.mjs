@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+const sqlite=new DatabaseSync(':memory:');
+sqlite.exec('CREATE TABLE quote_rate_limits (bucket TEXT PRIMARY KEY,attempts INTEGER NOT NULL,expires_at INTEGER NOT NULL)');
+const DB={prepare(sql){const stmt=sqlite.prepare(sql);let args=[];return {bind(...values){args=values;return this},async first(){return stmt.get(...args)||null},async run(){return stmt.run(...args)}}}};
 import {handleSubmission} from '../worker/requests.mjs';
 import {sendRequest} from '../public/submission.mjs';
 import {initial,change} from '../public/domain.mjs';
 import {rentalInitial,setRentalQty} from '../public/rentals.mjs';
 let seq=0;
 const key='vh-'+'a'.repeat(64);
-const env={WEB3FORM_ACCESS_KEY:'test-public-form-key'};
+const env={DB,WEB3FORM_ACCESS_KEY:'test-public-form-key'};
 let production=change(change(initial(),'service','Video'),'project','Podcast');production={...production,name:'Test Client',email:'client@example.com',notes:'A podcast brief',total:1};
 function request(state=production,type='production',headers={}){return new Request('https://visionhaus.example/api/requests',{method:'POST',headers:{Origin:'https://visionhaus.example','Content-Type':'application/json','CF-Connecting-IP':`test-${seq++}`,...headers},body:JSON.stringify({type,state,requestId:key})})}
 let r=await handleSubmission(request(),{});assert.equal(r.status,503,'Missing configuration must not claim success');
@@ -27,7 +31,7 @@ let rental=setRentalQty(rentalInitial(),'fx3',1);rental={...rental,start:'2099-1
 r=await handleSubmission(request(rental,'rental'),env);assert.equal(r.status,200);prepared=await r.json();assert.match(prepared.form.message,/6,000/);assert.equal(prepared.form.email,'rental@example.com');
 r=await handleSubmission(request({...rental,ack:false},'rental'),env);assert.equal(r.status,400);
 r=await handleSubmission(request({...rental,end:'2099-10-01'},'rental'),env);assert.equal(r.status,400);
-for(let i=0;i<6;i++){r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env);assert.equal(r.status,200)}r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env);assert.equal(r.status,429);
+for(let i=0;i<36;i++){r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env);assert.equal(r.status,200)}r=await handleSubmission(request(production,'production',{'CF-Connecting-IP':'limited-test'}),env);assert.equal(r.status,429);
 console.log('Web3Forms preparation validates origin/contact/dates and server pricing; browser submission requires provider acceptance, preserves errors, and never succeeds without configuration.');
 
 for(const date of ['2027-02-30','2000-01-01','<img src=x onerror=alert(1)>']){r=await handleSubmission(request({...production,date}),env);assert.equal(r.status,400,'Invalid production dates must be rejected before preparing a form');}
