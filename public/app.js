@@ -297,7 +297,7 @@ function render() {
   updateTabBar();
   document.body.dataset.view = app.view;
   bind();
-  if (scene !== app.lastScene) {
+  if (scene !== app.lastScene && !app.navigationTransition) {
     const target =
       app.view === 'plan'
         ? $('#task') || $('#app')
@@ -323,8 +323,12 @@ function render() {
   }
 }
 
+let navigationTicket = 0;
 function navigate(v) {
+  const ticket = ++navigationTicket;
+  app.navigationTransition?.skipTransition();
   const update = () => {
+    if (ticket !== navigationTicket) return;
     app.view = v;
     app.summaryOpen = false;
     render();
@@ -334,9 +338,16 @@ function navigate(v) {
   document.documentElement.dataset.transition = ['detail', 'plan', 'hire'].includes(v)
     ? 'drill'
     : 'tab';
-  if (document.startViewTransition && !app.reducedMotion.matches)
-    document.startViewTransition(update);
-  else update();
+  if (document.startViewTransition && !app.reducedMotion.matches) {
+    const transition = document.startViewTransition(update);
+    app.navigationTransition = transition;
+    // Fast consecutive taps supersede earlier requests without stale screen updates.
+    transition.finished
+      .catch(() => {})
+      .finally(() => {
+        if (app.navigationTransition === transition) app.navigationTransition = null;
+      });
+  } else update();
 }
 
 function focusTitle() {

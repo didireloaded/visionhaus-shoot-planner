@@ -138,5 +138,14 @@ input,textarea,select{font-size:16px}
 @media(max-width:700px){.keyboard-open #control-surface{position:static}.keyboard-open input:focus,.keyboard-open textarea:focus{scroll-margin-bottom:120px}}
 .sheet-handle{display:none}
 @media(max-width:700px){dialog.app-dialog{margin:auto 0 0;max-width:none;width:100%;max-height:85dvh;border-radius:24px 24px 0 0;padding-bottom:calc(24px + env(safe-area-inset-bottom));overflow-y:auto}.sheet-handle{display:block;touch-action:none;width:64px;height:28px;margin:-8px auto 12px;background:transparent;border:0;position:relative}.sheet-handle::after{content:'';position:absolute;left:12px;right:12px;top:10px;height:4px;border-radius:4px;background:var(--muted,#777)}.summary-sheet .mobile-summary{max-height:none;overflow:visible}}
-@media(prefers-reduced-motion:no-preference){::view-transition-old(root){animation:vh-fade-out 210ms ease-out}::view-transition-new(root){animation:vh-fade-in 210ms ease-out}html[data-transition="drill"]::view-transition-new(root){animation:vh-drill 210ms ease-out}}
+/* The dock and floating navigation share one safe-area-aware footprint. */
+:root{--nav-height:57px;--nav-bottom:max(19px,env(safe-area-inset-bottom));--tab-height:calc(var(--nav-height) + var(--nav-bottom))}
+#tab-bar{height:var(--nav-height);bottom:var(--nav-bottom)}
+#control-surface:not(:empty)::before{content:'';position:fixed;z-index:29;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:600px;height:var(--tab-height);background:var(--surface);pointer-events:none}
+@media(max-width:350px){:root{--nav-height:55px}}
+/* Only screen content transitions. Fixed navigation and the price dock stay live. */
+:root{view-transition-name:none}
+#app{view-transition-name:app-content}
+@media(prefers-reduced-motion:no-preference){::view-transition-old(app-content){animation:vh-fade-out 210ms ease-out}::view-transition-new(app-content){animation:vh-fade-in 210ms ease-out}html[data-transition="drill"]::view-transition-new(app-content){animation:vh-drill 210ms ease-out}}
 @keyframes vh-fade-out{to{opacity:0}}@keyframes vh-fade-in{from{opacity:0}}@keyframes vh-drill{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.keyboard-open #control-surface::before{display:none}
