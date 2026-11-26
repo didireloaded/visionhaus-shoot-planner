@@ -51,13 +51,8 @@ const compressed = await worker.fetch(
   new Request('https://vh.example' + bundle, { headers: { 'Accept-Encoding': 'gzip' } }),
   {},
 );
-assert.equal(compressed.headers.get('Content-Encoding'), 'gzip');
-const { gunzipSync } = await import('node:zlib');
-assert.deepEqual(
-  gunzipSync(Buffer.from(await compressed.arrayBuffer())),
-  Buffer.from(await bundled.arrayBuffer()),
-);
-
+assert.equal(compressed.headers.get('Content-Encoding'), null);
+assert.deepEqual(Buffer.from(await compressed.arrayBuffer()), Buffer.from(await bundled.arrayBuffer()));
 assert.equal((await worker.fetch(request('/api/missing'), {})).status, 404);
 assert.equal((await worker.fetch(request('/api/requests'), {})).status, 405);
 assert.equal((await worker.fetch(request('/api/brief'), {})).status, 405);

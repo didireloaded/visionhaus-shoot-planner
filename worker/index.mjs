@@ -29,7 +29,6 @@ export default {
     const key = pathname === '/' || appRoute.test(pathname) ? '/index.html' : pathname;
     const asset = assets[key];
     if (!asset) return new Response('Not found', { status: 404 });
-    const gzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(request.headers.get('Accept-Encoding') || '');
     const headers = {
       'Content-Type': asset.type,
       'X-Content-Type-Options': 'nosniff',
@@ -41,11 +40,9 @@ export default {
     };
     if (request.headers.get('If-None-Match') === asset.etag)
       return new Response(null, { status: 304, headers });
-    if (gzip) headers['Content-Encoding'] = 'gzip';
     let body = null;
     if (request.method !== 'HEAD') {
-      if (gzip) body = compressed.get(key);
-      else {
+      {
         if (!plain.has(key))
           plain.set(
             key,
