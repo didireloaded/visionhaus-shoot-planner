@@ -11,5 +11,8 @@
   "devDependencies": {
     "esbuild": "^0.28.2",
     "prettier": "^3.10.1"
+  },
+  "dependencies": {
+    "morphdom": "^2.7.8"
   }
 }

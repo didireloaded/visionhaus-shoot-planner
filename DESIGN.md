@@ -1,53 +1,21 @@
-# VisionHaus booking app: design direction
+# VisionHaus booking app: retained live design
 
-Source: the 2026 company profile (`assets/visionhaus/visionhaus-company-profile.pdf`). The app should read as part of the same brand.
+The owner's 26 November direction supersedes the navy and paper redesign: retain the published app's light canvas, compact icon package cards, transparent logo and black navigation with a lime selection indicator. Keep the added Studio information and functional improvements. Do not introduce the rejected photo-led redesign.
 
-Design Read: a booking and quotation app for brands, artists and event organisers, in the company-profile language (warm paper pages, navy panels, one blue accent, heavy two-line headlines). Dial: ENERGY 2 / RHYTHM 2 / MOTION 1.
+## Product brief
 
-## Palette
+VisionHaus Media serves brands, musicians, event organisers and equipment-hire clients in Windhoek. The three primary tasks are choosing a package, describing a custom production and requesting equipment with dates. Navigation remains Home, My Plan, Saved and Studio. Package scope and prices precede contact details at Review. Preserve the existing tokens in `public/style.css`, desktop composition and touch layout.
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--paper` | `#f6f3ec` | Page background, from the profile pages |
-| `--navy` | `#082744` | Text, primary buttons, header, price docks, summary panel |
-| `--accent` | `#0b6fa8` | Accent on light surfaces: headline second line, links, selection marks. 4.9:1 on paper |
-| `--accent-on-navy` | `#1fa4e7` | The profile's brand blue. Only on navy (5.4:1). It fails on paper (2.5:1) |
-| `--muted` | `#55606e` | Secondary text. 5.8:1 on paper |
+Keep real company-profile credits in Studio. No invented clients, awards, prices, response times or portfolio examples. Work stills remain available but are not introduced into the retained icon-based package layout. The transparent logo gains a lossless WebP source with PNG fallback.
 
-One accent. Selected options are solid navy, so the blue stays rare enough to mean "act here" or "you are here".
+## Interaction and accessibility
 
-## Type
+Use labelled native controls, visible focus, input text of at least 16px, reduced-motion handling and safe-area clearance. Browser Back retains draft data and walks through screen and step URLs. No personal details belong in URLs. Confirmation and summary dialogs use native modal focus containment; phone sheets add a drag handle. Offline submission preserves the request and explains that it has not been sent. Updates wait for explicit Refresh.
 
-Platform sans (SF, Segoe, Roboto) at weight 800 for headlines, matching the profile's heavy grotesk without a font download. Minimum text size 12px; body 15px.
+My Plan retains scope, equipment, extras and Review. Included package items are not billed twice. Starting estimates are not final quotations. Price-pending extras are excluded from the priced total and disclosed. Do not alter rates or the Zoho draft-only flow to suit presentation.
 
-## Shape
+## Ownership
 
-Panels 16px radius, cards 12px, controls 10px. Only the filter chips are fully round.
+`public/app.js` initializes one shared `app` object and owns rendering and submission. Screen modules own their markup and interactions. `ui/navigation.mjs` owns URL state, `ui/pwa.mjs` owns installation/update behavior, and the worker owns server validation and durable submission limits. DOM reconciliation retains controls during same-screen selection changes; typing persists without rendering.
 
-## Imagery
-
-Package photos are stills from VisionHaus productions, cropped from the company profile into `public/work/`. The profile pages are flattened images, so some stills are small (about 550px wide). Replace them with original exports when available, same file names.
-
-## Motion
-
-Feedback only: colour transitions on controls, a slight photo zoom on hover, a settle animation on the confirmation tick. Everything is off under `prefers-reduced-motion`.
-
-## Rules for changes
-
-- No new colours outside the tokens in `public/style.css`.
-- No em dashes, generic calls to action or invented claims in UI text.
-- Client names, credits and awards must come from the company profile or the owner.
-
-## Product and interaction brief
-
-Audience: brands, artists and event organisers requesting production in Windhoek, plus approved equipment-hire clients. Primary tasks: choose a priced package, describe a custom production and request kit with dates. Navigation: Packages, My Plan, Saved and Studio. Contact details appear at Review; prices and unresolved scope stay visible before submission.
-
-The production profile remains the visual reference. Keep photo-led package browsing, the profile's two-line headline and navy summary panels. Phone navigation docks to the bottom with content clearance; desktop navigation stays in the header. Use labelled controls, visible focus, readable text and reduced-motion support. Preserve loading, validation, failed-submit and confirmed-draft states. Do not add splash screens, decorative icon tiles or invented portfolio content.
-
-My Plan keeps scope, equipment, extras and Review as distinct steps. A package's included items are not billed a second time. A starting estimate is not a final quotation. Extras awaiting review are disclosed and excluded from the priced total. Multi-camera requests do not promise owned or available inventory. See the domain modules and tests for the approved rates, rather than duplicating them in design notes.
-
-## Browser module boundaries
-
-`public/app.js` initializes one `app` state object and owns root navigation, rendering and submission. Screen modules import that state; they do not keep competing copies. Brief and rental modules own their screen interactions. Shared helpers provide escaped text and the small SVG icon set. Tests import those functions directly without parsing source text.
-
-The images in `public/work/` remain unchanged. No higher-resolution source files were supplied for this refactor. The Podcasts card intentionally describes its image as a filmed interview in alt text; it is not presented as a podcast recording. Replace it only with an owner-supplied original.
+Motion explains tab changes and drilldowns, with no essential information dependent on it. Existing live palette and shape language take priority over example library styles. No framework or UI library is required.

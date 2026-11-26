@@ -1,3 +1,4 @@
+import { whatsapp } from './contact.mjs';
 import { dateField, displayDate } from './date-picker.mjs';
 import { app } from './state.mjs';
 import {
@@ -30,7 +31,7 @@ import {
   variantFor,
 } from '../domain.mjs';
 import { $, button, esc, heading, icon, money, motion, submissionFeedback } from './shared.mjs';
-import { briefEntry } from './brief.mjs';
+import { briefEntry, clearBrief } from './brief.mjs';
 import { windhoekToday } from '../dates.mjs';
 import { newRequestToken } from '../request-id.mjs';
 
@@ -41,11 +42,26 @@ export const services = [
   ['Editing', 'scissors', 'Editing', 'Finish what you’ve started'],
 ];
 
+export const serviceIcon = (p) =>
+  p === 'Podcast'
+    ? 'mic'
+    : p.includes('reel')
+      ? 'smartphone'
+      : p.includes('Music')
+        ? 'music-2'
+        : p.includes('Event') || p === 'Conference'
+          ? 'calendar-range'
+          : p.includes('Interview') || p === 'Testimonial'
+            ? 'messages-square'
+            : p === 'Commercial'
+              ? 'clapperboard'
+              : 'video';
+
 export function projectChooser() {
   const selected = app.state.service || 'Video';
   const choices = projects[selected];
   return /* HTML */ `<section class="project-chooser">
-    ${heading('Plan a custom production', 'Pick the service, then the kind of project.')}
+    ${heading('Let’s build your plan', 'Choose the kind of project you have in mind.')}
     <div class="service-switch" aria-label="Production type">
       ${services.map(([v, i, t]) => /* HTML */ `<button data-service="${v}" class="${selected === v ? 'selected' : ''}" aria-pressed="${selected === v}">${icon(i)}<span>${t}</span></button>`).join('')}
     </div>
@@ -77,7 +93,10 @@ export function projectChooser() {
 }
 
 export function projectTile(p) {
-  return /* HTML */ `<button data-project="${esc(p)}"><span>${p}</span></button>`;
+  return /* HTML */ `<button data-project="${esc(p)}">
+    <span class="project-icon">${icon(serviceIcon(p))}</span
+    ><span>${p}</span>${icon('chevron-right')}
+  </button>`;
 }
 
 export function chips(key, values) {
@@ -130,7 +149,8 @@ export function choice(key, value, label, sub, ic) {
     data-value="${esc(value)}"
     aria-pressed="${app.state[key] === value}"
   >
-    <span><strong>${label}</strong><small>${sub}</small></span
+    <span class="choice-icon">${icon(ic)}</span
+    ><span><strong>${label}</strong><small>${sub}</small></span
     ><b class="radio-mark">${app.state[key] === value ? icon('check') : ''}</b>
   </button>`;
 }
@@ -141,7 +161,8 @@ export function toggle(key, title, sub, ic) {
     data-toggle="${key}"
     aria-pressed="${app.state[key]}"
   >
-    <span><strong>${title}</strong><small>${sub}</small></span
+    <span class="choice-icon">${icon(ic)}</span
+    ><span><strong>${title}</strong><small>${sub}</small></span
     ><span class="switch ${app.state[key] ? 'on' : ''}"><b></b></span>
   </button>`;
 }
@@ -161,12 +182,15 @@ export function dateStrip() {
     month: '2-digit',
     day: '2-digit',
   });
-  return /* HTML */ `<div class="date-strip" aria-label="Preferred date in the next two weeks">
+  return /* HTML */ /* HTML */ `<div
+    class="date-strip"
+    aria-label="Preferred date in the next two weeks"
+  >
     ${Array.from({ length: 14 }, (_, i) => {
       const d = new Date(today);
       d.setUTCDate(d.getUTCDate() + i);
       const value = fmt.format(d);
-      return /* HTML */ `<button
+      return /* HTML */ /* HTML */ `<button
         data-key="date"
         data-value="${value}"
         class="${app.state.date === value ? 'selected' : ''}"
@@ -184,7 +208,7 @@ export function dateStrip() {
 }
 
 export function dateLocation() {
-  return /* HTML */ `<section class="date-choice">
+  return /* HTML */ /* HTML */ `<section class="date-choice">
       <h2 class="question">
         ${isEditing(app.state) ? 'Preferred delivery date' : 'Preferred shoot date'}
       </h2>
@@ -194,10 +218,10 @@ export function dateLocation() {
     <section class="input-group">
       ${
         !isEditing(app.state)
-          ? /* HTML */ `<label class="icon-field"
+          ? /* HTML */ /* HTML */ `<label class="icon-field"
                 >${icon('map-pin')}<span
                   >Where’s the shoot?<select id="location">
-                    ${locations.map((l) => /* HTML */ `<option ${l === app.state.location ? 'selected' : ''}>${l}</option>`).join('')}
+                    ${locations.map((l) => /* HTML */ /* HTML */ `<option ${l === app.state.location ? 'selected' : ''}>${l}</option>`).join('')}
                   </select></span
                 ></label
               ><label class="icon-field"
@@ -327,10 +351,10 @@ export function shoot() {
       )}${dateLocation()}`;
   const p = packageFor(app.state),
     v = variantFor(app.state);
-  return `${heading(app.state.mode === 'package' ? 'Date and location' : 'Shoot details', app.state.mode === 'package' ? `${p.title} · ${v.label}` : app.state.project)}${
+  return `${heading(app.state.mode === 'package' ? 'Make it a date' : 'Shape your shoot', app.state.mode === 'package' ? `${p.title} · ${v.label}` : app.state.project)}${
     app.state.mode === 'package' && !isPodcast(app.state)
       ? /* HTML */ `<div class="package-inclusions">
-          <h3>Your package includes</h3>
+          <span class="eyebrow">YOUR PACKAGE</span>
           <ul class="included-list">
             ${v.features.map((f) => /* HTML */ `<li>${icon('check')}${f}</li>`).join('')}
           </ul>
@@ -381,7 +405,7 @@ export function equipmentScreen() {
           Dates, hours, experience and any equipment requirements are confirmed in the quote.
         </p>
       </div>`;
-  return /* HTML */ `${heading('Setup', 'Camera coverage, lighting, sound and other kit.')}
+  return /* HTML */ `${heading('Build your setup', 'Choose what the shoot needs.')}
     ${
       !isPhoto(app.state) && !isEditing(app.state)
         ? question(
@@ -426,7 +450,7 @@ export function equipmentScreen() {
 
 export function delivery() {
   const p = packageFor(app.state);
-  return /* HTML */ `${heading('Extras', 'Optional additions. Priced extras update your estimate.')}
+  return /* HTML */ `${heading('The finishing touches', 'Add only what you need.')}
     <div class="choice-list extras-list">
       ${availableExtras(app.state)
         .map((e) => {
@@ -441,7 +465,8 @@ export function delivery() {
             aria-pressed="${app.state.extras.includes(e.id) || included}"
             ${included ? 'disabled' : ''}
           >
-            <span
+            <span class="choice-icon">${icon(e.icon)}</span
+            ><span
               ><strong>${e.title}</strong
               ><small
                 >${included ? 'Included in your package' : app.state.extras.includes(e.id) && e.price === null ? e.quoteNote || 'Requested. VisionHaus will discuss your project and confirm a separate price. Not included in this estimate.' : e.description}</small
@@ -599,9 +624,10 @@ export function estimate() {
 }
 
 export function review() {
-  return /* HTML */ `${heading('Review your request', 'Check the details, add your contact information and send it to VisionHaus.')}
+  return /* HTML */ `${heading('Everything in one place', 'Check your plan before requesting a quote.')}
     <section class="review-sheet">
       <div class="review-title">
+        ${icon(serviceIcon(app.state.project))}
         <h2>${app.state.project}</h2>
         <span class="included-tag">${app.state.mode === 'package' ? 'Package' : 'Custom'}</span>
       </div>
@@ -640,7 +666,7 @@ export function review() {
             .map(
               (e) =>
                 /* HTML */ `<li>
-                  ${icon('check')}${e.title}${e.price === null ? ' (requested, price agreed separately, not in the total)' : ''}
+                  ${icon('check')}${e.title}${e.price === null ? ' — requested, price to be agreed separately (not included in total)' : ''}
                 </li>`,
             )
             .join('') || '<li class="muted">No extras selected</li>'
@@ -729,7 +755,7 @@ export function reviewFlags() {
 }
 
 export function summaryContent() {
-  return /* HTML */ `<p class="summary-label">Your production</p>
+  return /* HTML */ `<span class="eyebrow">YOUR PRODUCTION</span>
     <h2>${app.state.project}</h2>
     <p class="summary-narrative">${narrative(app.state)}</p>
     ${estimate()}${reviewFlags()}`;
@@ -792,10 +818,11 @@ export function completion() {
   return /* HTML */ `<section class="completion">
     <span class="completion-icon">${icon('check')}</span
     >${heading('Request submitted', 'VisionHaus will review your brief and reply with a quotation.')}
-    <p class="request-reference">${esc(app.submissionReference)}</p>
+    <p class="request-reference">${esc(app.productionReference)}</p>
+    ${whatsapp(app.state.project || 'my production plan', app.productionReference)}
     <div class="review-sheet">${estimate()}</div>
     <button class="secondary" id="download">${icon('download')}Download your brief</button
-    ><button class="text-button" id="edit-plan">Edit a new request</button>
+    ><button class="text-button" id="edit-plan">Start a new request</button>
     <p class="field-hint">Quote request only. Booking requires approval and a 50% deposit.</p>
   </section>`;
 }
@@ -849,7 +876,10 @@ export async function next() {
   if (app.state.section === 'review') {
     if (!$('#contact').reportValidity()) return;
     const success = await app.submitRequest('production', app.state);
-    if (success) app.state.complete = true;
+    if (success) {
+      app.state.complete = true;
+      clearBrief();
+    }
     app.render();
     if (success) {
       scrollTo({ top: 0 });

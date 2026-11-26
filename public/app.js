@@ -1,5 +1,8 @@
-import { confirmAction } from './ui/dialog.mjs';
+import morphdom from 'morphdom';
+import { initNavigation, syncNavigation } from './ui/navigation.mjs';
+import { initPwa, haptic } from './ui/pwa.mjs';
 import { bindDatePicker } from './ui/date-picker.mjs';
+import { confirmAction, showSummary } from './ui/dialog.mjs';
 import { app } from './ui/state.mjs';
 import { rentalInitial, restoreRental } from './rentals.mjs';
 import { newRequestToken } from './request-id.mjs';
@@ -18,14 +21,17 @@ import {
 } from './domain.mjs';
 import { DRAFT, persist } from './ui/storage.mjs';
 import { $, button, icon, money, motion } from './ui/shared.mjs';
-import { bindRentals, rentalCheckout, rentalControls } from './ui/rentals.mjs';
 import { choose, custom, next, plan, sections, summaryContent } from './ui/plan.mjs';
+import { bindRentals, rentalCheckout, rentalControls } from './ui/rentals.mjs';
 import { home } from './ui/home.mjs';
 import { detail } from './ui/detail.mjs';
 import { bindBrief, briefScreen, clearBrief } from './ui/brief.mjs';
 import { savedPage } from './ui/saved.mjs';
 import { studio } from './ui/studio.mjs';
 import { sendRequest } from './submission.mjs';
+
+app.productionReference = '';
+app.rentalReference = '';
 
 app.rental = { ...rentalInitial(), requestToken: newRequestToken() };
 app.homeMode = 'packages';
@@ -35,7 +41,11 @@ app.rentalPrepared = false;
 
 try {
   const d = JSON.parse(localStorage.getItem('vh-rental-draft'));
-  if (d && Date.now() - d.savedAt < 7 * 86400000) app.rental = restoreRental(d.state);
+  if (d && Date.now() - d.savedAt < 7 * 86400000) {
+    app.rental = restoreRental(d.state);
+    app.rentalPrepared = d.submitted === true;
+    app.rentalReference = String(d.reference || '').slice(0, 120);
+  }
 } catch {}
 
 app.briefTextInput = '';
@@ -62,7 +72,6 @@ try {
 
 app.submitting = false;
 app.submissionError = '';
-app.submissionReference = '';
 
 app.previewRequestIds = new Map();
 
@@ -77,7 +86,11 @@ app.saved = [];
 
 try {
   const d = JSON.parse(localStorage.getItem(DRAFT));
-  if (d && Date.now() - d.savedAt < 7 * 86400000) app.state = restore(d.state);
+  if (d && Date.now() - d.savedAt < 7 * 86400000) {
+    app.state = restore(d.state);
+    app.state.complete = d.submitted === true || d.state?.complete === true;
+    app.productionReference = String(d.reference || '').slice(0, 120);
+  }
   app.saved = JSON.parse(localStorage.getItem('vh-package-favourites')) || [];
   if (!Array.isArray(app.saved)) app.saved = [];
 } catch {}
@@ -93,37 +106,134 @@ function mountRegion(selector, markup, force = false) {
   const cacheKey = String(app.submitting) + markup;
   if (!force && app.renderedRegions.get(selector) === cacheKey) return;
   const root = $(selector);
-  root.innerHTML = markup;
+  if (force || !root.firstChild) root.innerHTML = markup;
+  else {
+    const next = root.cloneNode(false);
+    next.innerHTML = markup;
+    morphdom(root, next, {
+      childrenOnly: true,
+      onBeforeElUpdated(from, to) {
+        if (from === document.activeElement && /^(INPUT|TEXTAREA)$/.test(from.tagName))
+          return false;
+        return !from.isEqualNode(to);
+      },
+    });
+  }
   app.renderedRegions.set(selector, cacheKey);
 }
 
 function header() {
   return /* HTML */ `<div class="topbar">
-    <button class="brand" data-view="home" aria-label="VisionHaus home">
-      <img src="/visionhaus-logo.png" alt="" width="1736" height="704" />
+    <button class="brand-avatar" data-view="studio" aria-label="About VisionHaus">
+      <picture
+        ><source srcset="/visionhaus-logo.webp" type="image/webp" />
+        <img src="/visionhaus-logo.png" alt="" width="1736" height="704"
+      /></picture></button
+    ><button class="greeting-brand" data-view="home">
+      <strong>Hi, creator</strong><small>Let's make your next production</small></button
+    ><button class="icon-button" id="find-package" aria-label="Find a package">
+      ${icon('search')}</button
+    ><button class="icon-button" data-view="plan" aria-label="Build a custom production">
+      ${icon('sliders-horizontal')}
     </button>
-    <nav id="tab-bar" aria-label="Main navigation">${tabBar()}</nav>
   </div>`;
 }
 
 function tabBar() {
   return [
-    ['home', 'clapperboard', 'Packages'],
+    ['home', 'house', 'Home'],
     ['plan', 'sliders-horizontal', 'My Plan'],
     ['saved', 'heart', 'Saved'],
-    ['studio', 'info', 'Studio'],
+    ['studio', 'circle-user-round', 'Studio'],
   ]
     .map(
       ([v, i, t]) =>
-        /* HTML */ `<button data-view="${v}" ${navSelected() === v ? 'aria-current="page"' : ''}>
+        /* HTML */ `<button
+          data-view="${v}"
+          aria-label="${t}"
+          ${app.view === v || (v === 'home' && ['detail', 'brief'].includes(app.view)) || (v === 'plan' && app.view === 'hire') ? 'aria-current="page"' : ''}
+        >
           ${icon(i)}<span>${t}</span>
         </button>`,
     )
     .join('');
 }
 
-const navSelected = () =>
-  ['detail', 'brief'].includes(app.view) ? 'home' : app.view === 'hire' ? 'plan' : app.view;
+app.activeNavTab = '';
+
+function updateTabBar() {
+  const nav = $('#tab-bar');
+  const first = !nav.querySelector('.nav-highlight');
+  if (first) {
+    nav.innerHTML = '<span class="nav-highlight" aria-hidden="true"></span>' + tabBar();
+  }
+  const buttons = [...nav.querySelectorAll('button[data-view]')];
+  buttons.forEach((b) => (b.disabled = app.submitting));
+  const selected = ['detail', 'brief'].includes(app.view)
+    ? 'home'
+    : app.view === 'hire'
+      ? 'plan'
+      : app.view;
+  if (!first && selected === app.activeNavTab) return;
+  const pill = nav.querySelector('.nav-highlight'),
+    navRect = nav.getBoundingClientRect(),
+    oldPill = pill.getBoundingClientRect();
+  const previous = buttons.map((b) => b.getBoundingClientRect());
+  buttons.forEach((b) => {
+    b.getAnimations().forEach((a) => a.cancel());
+    if (b.dataset.view === selected) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
+  const target = buttons.find((b) => b.dataset.view === selected) || buttons[0];
+  const x = target.offsetLeft,
+    width = target.offsetWidth;
+  pill.getAnimations().forEach((a) => a.cancel());
+  Object.assign(pill.style, {
+    top: target.offsetTop + 'px',
+    height: target.offsetHeight + 'px',
+    width: width + 'px',
+    transform: `translateX(${x}px)`,
+  });
+  if (!first && !app.reducedMotion.matches) {
+    // Begin from the visible position, so rapid tab presses do not queue slides.
+    motion(
+      pill,
+      [
+        { transform: `translateX(${oldPill.left - navRect.left}px)`, width: oldPill.width + 'px' },
+        { transform: `translateX(${x}px)`, width: width + 'px' },
+      ],
+      300,
+    );
+    buttons.forEach((b, i) => {
+      const next = b.getBoundingClientRect();
+      motion(
+        b,
+        [
+          { transform: `translateX(${previous[i].left - next.left}px)` },
+          { transform: 'translateX(0)' },
+        ],
+        240,
+      );
+    });
+  }
+  app.activeNavTab = selected;
+}
+
+const navResize = new ResizeObserver(() => {
+  const nav = $('#tab-bar'),
+    target = nav.querySelector('button[aria-current]'),
+    pill = nav.querySelector('.nav-highlight');
+  if (!target || !pill) return;
+  pill.getAnimations().forEach((a) => a.cancel());
+  Object.assign(pill.style, {
+    top: target.offsetTop + 'px',
+    height: target.offsetHeight + 'px',
+    width: target.offsetWidth + 'px',
+    transform: `translateX(${target.offsetLeft}px)`,
+  });
+});
+
+navResize.observe($('#tab-bar'));
 
 function controls() {
   if (app.view === 'hire' || (app.view === 'home' && app.homeMode === 'rentals'))
@@ -164,6 +274,7 @@ function controls() {
 
 function render() {
   persist();
+  syncNavigation();
   const scene =
     app.view === 'home'
       ? `${app.view}:${app.homeMode}:${app.filter}:${app.rentalCategory}`
@@ -180,9 +291,10 @@ function render() {
     { home, detail, plan, hire: rentalCheckout, brief: briefScreen, saved: savedPage, studio }[
       app.view
     ](),
-    true,
+    scene !== app.lastScene,
   );
   mountRegion('#control-surface', controls());
+  updateTabBar();
   document.body.dataset.view = app.view;
   bind();
   if (scene !== app.lastScene) {
@@ -212,11 +324,19 @@ function render() {
 }
 
 function navigate(v) {
-  app.view = v;
-  app.summaryOpen = false;
-  render();
-  scrollTo({ top: 0 });
-  focusTitle();
+  const update = () => {
+    app.view = v;
+    app.summaryOpen = false;
+    render();
+    scrollTo({ top: 0 });
+    focusTitle();
+  };
+  document.documentElement.dataset.transition = ['detail', 'plan', 'hire'].includes(v)
+    ? 'drill'
+    : 'tab';
+  if (document.startViewTransition && !app.reducedMotion.matches)
+    document.startViewTransition(update);
+  else update();
 }
 
 function focusTitle() {
@@ -245,7 +365,16 @@ async function submitRequest(type, payload) {
       digest = app.previewRequestIds.get(fingerprint);
     }
     const requestId = 'vh-' + [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
-    app.submissionReference = await sendRequest({ type, state: copy, requestId });
+    if (!navigator.onLine) {
+      const error = new Error('Offline');
+      error.userMessage =
+        "You're offline. Your request is saved and you can submit when you're back online.";
+      throw error;
+    }
+    const reference = await sendRequest({ type, state: copy, requestId });
+    haptic();
+    if (type === 'rental') app.rentalReference = reference;
+    else app.productionReference = reference;
     return true;
   } catch (error) {
     app.submissionError =
@@ -263,6 +392,16 @@ function bind() {
   bindDatePicker();
   bindBrief();
   bindRentals();
+  if ($('#find-package'))
+    $('#find-package').onclick = () => {
+      app.homeMode = 'packages';
+      app.filter = 'All';
+      navigate('home');
+      setTimeout(() => {
+        $('.home-section-label')?.scrollIntoView({ block: 'start' });
+        $('.package-open')?.focus({ preventScroll: true });
+      }, 250);
+    };
   document
     .querySelectorAll('button[data-view]')
     .forEach((b) => (b.onclick = () => navigate(b.dataset.view)));
@@ -420,6 +559,11 @@ function bind() {
         persist();
       };
   document.querySelectorAll('[data-next]').forEach((b) => (b.onclick = next));
+  if ($('#summary-toggle'))
+    $('#summary-toggle').onclick = (event) => {
+      event.preventDefault();
+      showSummary(summaryContent());
+    };
   if ($('.mobile-disclosure'))
     $('.mobile-disclosure').ontoggle = (e) => {
       if (e.target.isConnected) app.summaryOpen = e.target.open;
@@ -460,11 +604,10 @@ function bind() {
     };
   if ($('#edit-plan'))
     $('#edit-plan').onclick = () => {
-      app.state.complete = false;
-      app.state.requestToken = newRequestToken();
-      app.state.section = 'review';
+      app.productionReference = '';
       app.submissionError = '';
-      render();
+      clearBrief();
+      custom();
     };
 
   if ($('#download'))
@@ -500,6 +643,7 @@ Object.assign(app, {
   mountRegion,
   header,
   tabBar,
+  updateTabBar,
   controls,
   render,
   navigate,
@@ -508,6 +652,6 @@ Object.assign(app, {
   bind,
 });
 
+initNavigation();
 render();
-
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+initPwa();

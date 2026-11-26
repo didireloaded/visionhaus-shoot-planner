@@ -19,6 +19,8 @@ async function verify(dir = 'public', prefix = '') {
     const bytes = Buffer.from(await response.arrayBuffer()),
       source = await readFile(file);
     if (url === '/sw.js') assert.match(bytes.toString(), /vh-shell-[a-f0-9]{12}/);
+    else if (url === '/index.html')
+      assert.match(bytes.toString(), /\/assets\/app-[a-f0-9]{12}\.js/);
     else assert.deepEqual(bytes, source, url + ' round trips through the build');
   }
 }
@@ -27,6 +29,33 @@ assert.equal((await worker.fetch(request('/'), {})).status, 200);
 assert.equal(await (await worker.fetch(request('/app.js', 'HEAD'), {})).text(), '');
 assert.equal((await worker.fetch(request('/app.js', 'POST'), {})).status, 405);
 assert.equal((await worker.fetch(request('/missing'), {})).status, 404);
+for (const route of ['/package/reels', '/plan/review', '/hire/dates', '/studio'])
+  assert.equal((await worker.fetch(request(route), {})).status, 200);
+const html = await (await worker.fetch(request('/'), {})).text();
+const bundle = html.match(/src="(\/assets\/app-[a-f0-9]+\.js)"/)[1];
+const bundled = await worker.fetch(request(bundle), {});
+assert.match(bundled.headers.get('Cache-Control'), /immutable/);
+const etag = bundled.headers.get('ETag');
+assert.equal(
+  (
+    await worker.fetch(
+      new Request('https://vh.example' + bundle, { headers: { 'If-None-Match': etag } }),
+      {},
+    )
+  ).status,
+  304,
+);
+const compressed = await worker.fetch(
+  new Request('https://vh.example' + bundle, { headers: { 'Accept-Encoding': 'gzip' } }),
+  {},
+);
+assert.equal(compressed.headers.get('Content-Encoding'), 'gzip');
+const { gunzipSync } = await import('node:zlib');
+assert.deepEqual(
+  gunzipSync(Buffer.from(await compressed.arrayBuffer())),
+  Buffer.from(await bundled.arrayBuffer()),
+);
+
 assert.equal((await worker.fetch(request('/api/missing'), {})).status, 404);
 assert.equal((await worker.fetch(request('/api/requests'), {})).status, 405);
 assert.equal((await worker.fetch(request('/api/brief'), {})).status, 405);
@@ -57,6 +86,7 @@ const fixture = await mkdtemp(join(tmpdir(), 'vh-build-'));
 try {
   await cp('worker', join(fixture, 'worker'), { recursive: true });
   await cp('public', join(fixture, 'public'), { recursive: true });
+  await cp('node_modules/morphdom', join(fixture, 'node_modules/morphdom'), { recursive: true });
   await mkdir(join(fixture, '.openai'));
   await cp('.openai/hosting.json', join(fixture, '.openai/hosting.json'));
   await writeFile(join(fixture, 'package.json'), '{"type":"module"}');

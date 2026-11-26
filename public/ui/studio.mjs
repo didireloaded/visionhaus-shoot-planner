@@ -3,7 +3,13 @@ import { heading, icon } from './shared.mjs';
 
 export function studio() {
   return /* HTML */ `<section class="studio-page">
-    ${heading('VisionHaus Media', 'Visual production for brands, people and culture, based in Windhoek.')}
+    <div class="studio-logo">
+      <picture
+        ><source srcset="/visionhaus-logo.webp" type="image/webp" />
+        <img src="/visionhaus-logo.png" alt="VisionHaus" width="1736" height="704"
+      /></picture>
+    </div>
+    ${heading('VisionHaus Media', 'Film. Photography. Your next idea.')}
     <dl class="studio-credits">
       <div>
         <dt>Recognition</dt>

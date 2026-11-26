@@ -25,7 +25,7 @@ export async function readBriefPdf(file){
  if(file.size>8*1024*1024)throw new Error('Choose a PDF smaller than 8 MB.');
  const bytes=new Uint8Array(await file.arrayBuffer());
  if(new TextDecoder().decode(bytes.slice(0,5))!=='%PDF-')throw new Error('Choose a valid PDF file.');
- const pdfjs=await import('./vendor/pdfjs/pdf.mjs');
+ const pdfjs=await import('/vendor/pdfjs/pdf.mjs');
  pdfjs.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.mjs';
  let loading,document;
  try{

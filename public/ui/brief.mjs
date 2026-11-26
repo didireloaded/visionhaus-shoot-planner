@@ -1,7 +1,7 @@
 import { confirmAction } from './dialog.mjs';
 import { app } from './state.mjs';
-import { plan, services } from './plan.mjs';
 import { $, button, esc, heading, icon, money } from './shared.mjs';
+import { plan, services } from './plan.mjs';
 import { projects, restore } from '../domain.mjs';
 import { readBriefPdf } from '../brief.mjs';
 import { newRequestToken } from '../request-id.mjs';
@@ -37,8 +37,9 @@ export function persistBrief() {
 
 export function briefEntry() {
   return /* HTML */ `<button class="brief-entry" data-brief-open>
-    <strong>Have a project brief?</strong
-    ><small>Paste it or upload a PDF. We turn it into a plan you can edit.</small>
+    ${icon('file-text')}<span
+      ><strong>Have a project brief?</strong><small>Bring it into your plan</small></span
+    >${icon('arrow-up-right')}
   </button>`;
 }
 

@@ -1,9 +1,11 @@
+import { haptic } from './pwa.mjs';
 import { app } from './state.mjs';
 import {
   includedBy,
   rentalBrief,
   rentalDays,
   rentalErrors,
+  rentalInitial,
   rentalItems,
   rentalLines,
   rentalTotal,
@@ -77,6 +79,7 @@ export function rentalCounter(item) {
 export function rentalRow(item) {
   const parent = includedBy(app.rental, item.id);
   return /* HTML */ `<article class="rental-row ${parent ? 'bundle-included' : ''}">
+    <span class="rental-item-icon">${icon(item.icon)}</span>
     <div class="rental-item-copy">
       <h2>${item.title}</h2>
       <p>${item.description}</p>
@@ -93,7 +96,7 @@ export function rentalCatalogue() {
     (i) => app.rentalCategory === 'All' || i.category === app.rentalCategory,
   );
   return /* HTML */ `<section class="home-page rental-catalogue">
-    ${modeSwitch()}${heading('Equipment hire', 'Cameras, lenses, audio and lighting modifiers at rate-card prices.')}
+    ${modeSwitch()}${heading('The kit for your next shoot.', 'Equipment hire, without the guesswork.')}
     ${rentalPeriodSelector()}
     <nav class="filter-chips rental-categories" aria-label="Equipment categories">
       ${['All', 'Cameras', 'Lenses', 'Audio', 'Modifiers', 'GoPros', 'Accessories'].map((c) => /* HTML */ `<button data-rental-category="${c}" class="${app.rentalCategory === c ? 'active' : ''}" aria-pressed="${app.rentalCategory === c}">${c}</button>`).join('')}
@@ -177,9 +180,10 @@ export function rentalDates() {
 }
 
 export function rentalReview() {
-  return /* HTML */ `${heading('Review your rental', 'Check the kit and dates, then add your details.')}
+  return /* HTML */ `${heading('Review your rental', 'Everything going into your request.')}
     <section class="review-sheet">
       <div class="review-title">
+        ${icon('package')}
         <h2>Equipment hire</h2>
         <span class="included-tag">Request</span>
       </div>
@@ -271,9 +275,9 @@ export function rentalCheckout() {
     return /* HTML */ `<section class="completion">
       <span class="completion-icon">${icon('check')}</span
       >${heading('Rental request submitted', 'VisionHaus will review availability and reply with a quotation.')}
-      <p class="request-reference">${esc(app.submissionReference)}</p>
+      <p class="request-reference">${esc(app.rentalReference)}</p>
       <button class="secondary" id="rental-download">${icon('download')}Download request</button
-      ><button class="text-button" id="rental-edit">Edit a new request</button>
+      ><button class="text-button" id="rental-edit">Start a new request</button>
       <p class="field-hint">This is not a confirmed equipment reservation.</p>
     </section>`;
   return /* HTML */ `<section class="rental-checkout">
@@ -390,8 +394,10 @@ export function bindRentals() {
         if (app.rentalPrepared) app.rental.requestToken = newRequestToken();
         const id = b.dataset.rentalItem,
           qty = Number(b.dataset.qty);
+        const oldQty = app.rental.items[id] || 0;
         const old = Object.keys(app.rental.items);
         app.rental = setRentalQty(app.rental, id, qty);
+        if ((app.rental.items[id] || 0) > oldQty) haptic();
         const removed = old.filter((x) => !app.rental.items[x]);
         app.rentalMessage =
           removed.length && qty > 0
@@ -496,9 +502,20 @@ export function bindRentals() {
 
   if ($('#rental-edit'))
     $('#rental-edit').onclick = () => {
-      app.rental.requestToken = newRequestToken();
+      const contact = {
+        name: app.rental.name,
+        company: app.rental.company,
+        billingAddress: app.rental.billingAddress,
+        email: app.rental.email,
+        phone: app.rental.phone,
+      };
+      app.rental = { ...rentalInitial(), ...contact, requestToken: newRequestToken() };
       app.rentalPrepared = false;
-      app.render();
+      app.rentalReference = '';
+      app.submissionError = '';
+      app.rentalMessage = '';
+      app.homeMode = 'rentals';
+      app.navigate('home');
     };
   if ($('#rental-download'))
     $('#rental-download').onclick = () => {

@@ -8,7 +8,8 @@ export const esc = (v) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
 
-export { icon } from '../icons.mjs';
+import { icon } from '../icons.mjs';
+export { icon };
 
 export const money = (n) => `N$ ${n.toLocaleString('en-NA')}`;
 
@@ -26,7 +27,7 @@ export function heading(title, sub = '') {
 }
 
 export function button(label, attr = '', cls = 'primary') {
-  return /* HTML */ `<button class="${cls}" ${attr}>${label}</button>`;
+  return /* HTML */ `<button class="${cls}" ${attr}>${label}${icon('arrow-right')}</button>`;
 }
 
 export function submissionFeedback() {

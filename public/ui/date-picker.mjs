@@ -25,7 +25,16 @@ export function calendarDays(month) {
 }
 
 export function dateField(value) {
-  return `<div class="text-field"><span>Another date</span><input id="date" type="hidden" value="${esc(value)}"><button class="date-picker-button" type="button" data-date-picker aria-haspopup="dialog">${displayDate(value) || 'Choose a date from the calendar'}</button></div>`;
+  return /* HTML */ `<div class="text-field">
+    <span>Another date</span><input id="date" type="hidden" value="${esc(value)}" /><button
+      class="date-picker-button"
+      type="button"
+      data-date-picker
+      aria-haspopup="dialog"
+    >
+      ${displayDate(value) || 'Choose a date from the calendar'}
+    </button>
+  </div>`;
 }
 
 export function openDatePicker(input, trigger) {
@@ -54,19 +63,55 @@ export function openDatePicker(input, trigger) {
     }).format(new Date(month + '-01T12:00:00Z'));
     const days = calendarDays(month);
     while (days.length % 7) days.push('');
-    dialog.innerHTML = `<div class="calendar-header"><button class="text-button" type="button" data-month="-1" aria-label="Previous month" ${month <= minimum.slice(0, 7) ? 'disabled' : ''}>Previous</button><h2 aria-live="polite">${label}</h2><button class="text-button" type="button" data-month="1" aria-label="Next month">Next</button></div><table class="month-calendar"><caption class="sr-only">${label}</caption><thead><tr>${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<th scope="col">${d}</th>`).join('')}</tr></thead><tbody>${Array.from(
-      { length: days.length / 7 },
-      (_, week) =>
-        `<tr>${days
-          .slice(week * 7, week * 7 + 7)
-          .map(
-            (value) =>
-              `<td>${value ? `<button type="button" data-date="${value}" aria-label="${fullDate(value)}" aria-pressed="${value === input.value}" ${value < minimum ? 'disabled' : ''}>${Number(value.slice(-2))}</button>` : ''}</td>`,
-          )
-          .join('')}</tr>`,
-    ).join(
-      '',
-    )}</tbody></table><p class="field-hint">Choose a day. Availability is confirmed with your quotation.</p><div class="dialog-actions"><button class="secondary" type="button" data-calendar-cancel>Cancel</button><button class="text-button" type="button" data-calendar-flexible>Keep date flexible</button></div>`;
+    dialog.innerHTML = /* HTML */ `<div class="calendar-header">
+        <button
+          class="text-button"
+          type="button"
+          data-month="-1"
+          aria-label="Previous month"
+          ${month <= minimum.slice(0, 7) ? 'disabled' : ''}
+        >
+          Previous
+        </button>
+        <h2 aria-live="polite">${label}</h2>
+        <button class="text-button" type="button" data-month="1" aria-label="Next month">
+          Next
+        </button>
+      </div>
+      <table class="month-calendar">
+        <caption class="sr-only">
+          ${label}
+        </caption>
+        <thead>
+          <tr>
+            ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => /* HTML */ `<th scope="col">${d}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${Array.from(
+            { length: days.length / 7 },
+            (_, week) =>
+              /* HTML */ `<tr>
+                ${days
+                  .slice(week * 7, week * 7 + 7)
+                  .map(
+                    (value) =>
+                      /* HTML */ `<td>
+                        ${value ? /* HTML */ `<button type="button" data-date="${value}" aria-label="${fullDate(value)}" aria-pressed="${value === input.value}" ${value < minimum ? 'disabled' : ''}>${Number(value.slice(-2))}</button>` : ''}
+                      </td>`,
+                  )
+                  .join('')}
+              </tr>`,
+          ).join('')}
+        </tbody>
+      </table>
+      <p class="field-hint">Choose a day. Availability is confirmed with your quotation.</p>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-calendar-cancel>Cancel</button
+        ><button class="text-button" type="button" data-calendar-flexible>
+          Keep date flexible
+        </button>
+      </div>`;
     dialog.querySelectorAll('[data-month]').forEach(
       (button) =>
         (button.onclick = () => {

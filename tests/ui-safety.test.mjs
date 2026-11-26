@@ -50,3 +50,11 @@ delete globalThis.localStorage;
 console.log(
   'Imported UI functions escape hostile scope, clear briefs and preserve contacts on a new plan.',
 );
+
+const { button } = await import('../public/ui/shared.mjs');
+assert.match(button('Continue'), /<svg/);
+
+const {rentalItems} = await import('../public/rentals.mjs');
+const {packages} = await import('../public/domain.mjs');
+const {icon} = await import('../public/icons.mjs');
+for(const item of [...rentalItems,...packages]) assert.match(icon(item.icon), /<svg/);
