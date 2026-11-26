@@ -19,6 +19,7 @@ async function verify(dir = 'public', prefix = '') {
     const bytes = Buffer.from(await response.arrayBuffer()),
       source = await readFile(file);
     if (url === '/sw.js') assert.match(bytes.toString(), /vh-shell-[a-f0-9]{12}/);
+    else if (url === '/app.js') assert.ok(bytes.length > 1000);
     else if (url === '/index.html')
       assert.match(bytes.toString(), /\/assets\/app-[a-f0-9]{12}\.js/);
     else assert.deepEqual(bytes, source, url + ' round trips through the build');
@@ -34,6 +35,7 @@ for (const route of ['/package/reels', '/plan/review', '/hire/dates', '/studio']
 const html = await (await worker.fetch(request('/'), {})).text();
 const bundle = html.match(/src="(\/assets\/app-[a-f0-9]+\.js)"/)[1];
 const bundled = await worker.fetch(request(bundle), {});
+assert.equal(await (await worker.fetch(request('/app.js'),{})).text(), await bundled.clone().text());
 assert.match(bundled.headers.get('Cache-Control'), /immutable/);
 const etag = bundled.headers.get('ETag');
 assert.equal(

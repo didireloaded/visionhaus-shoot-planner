@@ -47,6 +47,8 @@ const browser = await build({
   external: ['/vendor/pdfjs/*'],
 });
 const appBytes = Buffer.from(browser.outputFiles[0].contents);
+// Older cached HTML may still request the stable entry URL. It must also be executable.
+files.find(file => file.url === '/app.js').bytes = appBytes;
 const appUrl =
   '/assets/app-' + createHash('sha256').update(appBytes).digest('hex').slice(0, 12) + '.js';
 const css = files.find((f) => f.url === '/style.css');
